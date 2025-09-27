@@ -1,0 +1,36 @@
+name: wtg_front
+description: "A new Flutter project."
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.3 <4.0.0' # É uma boa prática definir um range
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # PACOTES ADICIONADOS
+  http: ^1.2.1
+  google_sign_in: ^6.2.1
+  shared_preferences: ^2.2.3
+  
+  # Pacote de ícones padrão do Flutter
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  flutter_lints: ^4.0.0
+
+# A seção a seguir é específica do Flutter.
+flutter:
+
+  # A linha a seguir garante que a fonte Material Icons seja incluída.
+  uses-material-design: true
+
+  # Para adicionar assets (imagens, fontes, etc.) à sua aplicação.
+  assets:
+    - assets/images/
