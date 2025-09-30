@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
-import 'package:google_sign_in/google_sign_in.dart'; // Importe o pacote do Google Sign In
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,10 +15,19 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _apiService = ApiService();
-  final GoogleSignIn _googleSignIn = GoogleSignIn(); // Instância do Google Sign In
+
+  late final ApiService _apiService;
+  late final GoogleSignIn _googleSignIn;
 
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _apiService = ApiService();
+    _googleSignIn = GoogleSignIn();
+  }
 
   @override
   void dispose() {
@@ -43,10 +54,20 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       }
-    } catch (e) {
+    } on http.ClientException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro no login: ${e.toString()}')),
+          SnackBar(content: Text('Erro de conexão: ${e.message}')),
+        );
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        String errorMessage = e.toString().replaceFirst('Exception: ', '');
+        if (errorMessage.contains("401")) {
+          errorMessage = "E-mail ou senha inválidos.";
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } finally {
@@ -67,23 +88,18 @@ class _LoginScreenState extends State<LoginScreen> {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // Usuário cancelou o login do Google
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
         throw Exception('Não foi possível obter o ID Token do Google.');
       }
 
-      // TODO: Enviar o idToken para o seu backend para verificação e login
-      // Atualmente, seu backend só aceita login tradicional.
-      // Você precisaria de um endpoint como POST /api/auth/google que aceita { "idToken": "..." }
-      // Por enquanto, vamos simular um sucesso e mostrar o token.
-      
-      // Simulação de resposta da API com o idToken para fins de demonstração
       final simulatedResponse = {
         "status": "ok",
         "messagem": "Login com Google bem-sucedido (simulado)",
@@ -96,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
           "pictureUrl": googleUser.photoUrl,
           "userType": "COMMON",
         },
-        "token": idToken, // Incluindo o ID Token retornado pelo Google
+        "token": idToken,
       };
 
       if (mounted) {
@@ -121,71 +137,127 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final emailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Recuperar Senha'),
+          content: TextField(
+            controller: emailController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(hintText: "Digite seu e-mail"),
+          ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              child: const Text('Enviar'),
+              onPressed: () async {
+                if (emailController.text.isNotEmpty) {
+                  Navigator.of(context).pop();
+                  _sendForgotPasswordRequest(emailController.text);
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _sendForgotPasswordRequest(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.forgotPassword(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Se o e-mail estiver cadastrado, um link será enviado.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Se o e-mail estiver cadastrado, um link será enviado.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        // Fundo com gradiente
+        // Fundo com gradiente mantido
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFFff9a9e), // Cor superior esquerda (rosa/laranja)
-              Color(0xFFfad0c4), // Cor do meio (amarelo claro)
-              Color(0xFFa18cd1), // Cor inferior direita (roxo)
+              Color(0xFFff9a9e),
+              Color(0xFFfad0c4),
+              Color(0xFFa18cd1),
             ],
           ),
         ),
-        child: Center(
-          child: SingleChildScrollView( // Para evitar overflow em teclados
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                  Image.asset('assets/images/LaRuaLogo.png', 
-                  height: 320),
-                const SizedBox(height: 20),
-
-                // Logo "LaRua"
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 40),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF6A1B9A), // Roxo escuro
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Logo
+                  Image.asset('assets/images/LaRuaLogo.png', height: 220), // Altura reduzida
+                  const SizedBox(height: 10), // Espaçamento reduzido
+                  
+                  // Texto "LaRua"
+                  const Text(
                     'LaRua',
                     style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 40,
+                      color: Colors.black87,
+                      fontSize: 48,
                       fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
                     ),
                   ),
-                ),
-                const SizedBox(height: 40),
+                  const SizedBox(height: 35), // Espaçamento reduzido
 
-                // Campo de E-mail
-                _buildTextField(_emailController, 'E-mail', false),
-                const SizedBox(height: 20),
+                  // Campos de Texto
+                  _buildTextField(_emailController, 'E-mail', false),
+                  const SizedBox(height: 20),
+                  _buildTextField(
+                      _passwordController, 'Password', !_isPasswordVisible),
+                  const SizedBox(height: 20),
 
-                // Campo de Senha
-                _buildTextField(_passwordController, 'Password', true),
-                const SizedBox(height: 40),
+                  // Botões (sem alteração de funcionalidade)
+                  if (_isLoading)
+                    const CircularProgressIndicator(color: Colors.white)
+                  else ...[
+                    _buildLoginButton('LOGIN', _performLogin, const Color(0xFF6A1B9A)),
+                    const SizedBox(height: 15),
+                    _buildGoogleLoginButton('Login with Google', _performGoogleLogin),
+                  ],
 
-                // Botão de Login Tradicional
-                _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : _buildLoginButton('LOGIN', _performLogin, const Color(0xFF6A1B9A)),
-                const SizedBox(height: 20),
-
-                // Botão de Login com Google
-                _isLoading
-                    ? const SizedBox.shrink() // Oculta o botão Google se estiver carregando
-                    : _buildGoogleLoginButton('Login with Google', _performGoogleLogin),
-              ],
+                  // "Esqueci minha senha" - movido para o final
+                  TextButton(
+                    onPressed: _forgotPassword,
+                    child: const Text(
+                      'Esqueci minha senha',
+                      style: TextStyle(
+                          color: Colors.black54, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -193,36 +265,44 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Widget auxiliar para construir os campos de texto
-  Widget _buildTextField(TextEditingController controller, String label, bool obscureText) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9), // Fundo branco semi-transparente
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 3), // Sombra leve
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        style: const TextStyle(color: Colors.black87),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: TextStyle(color: Colors.grey[600]),
-          border: InputBorder.none, // Remove a borda padrão do TextField
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+  // Widget de campo de texto com novo design
+  Widget _buildTextField(
+      TextEditingController controller, String label, bool obscureText) {
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      style: const TextStyle(color: Colors.black87, fontSize: 16),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.grey[600]),
+        // Linha inferior
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.grey.shade400),
         ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Color(0xFF6A1B9A), width: 2),
+        ),
+        // Ícone para mostrar/ocultar senha
+        suffixIcon: label == 'Password'
+            ? IconButton(
+                icon: Icon(
+                  _isPasswordVisible
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _isPasswordVisible = !_isPasswordVisible;
+                  });
+                },
+              )
+            : null,
       ),
     );
   }
 
-  // Widget auxiliar para construir os botões de login
+  // Widgets de botão sem alteração
   Widget _buildLoginButton(String text, VoidCallback onPressed, Color color) {
     return ElevatedButton(
       onPressed: onPressed,
@@ -233,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
         ),
-        minimumSize: const Size(double.infinity, 50), // Largura total
+        minimumSize: const Size(double.infinity, 50),
       ),
       child: Text(
         text,
@@ -242,31 +322,30 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Widget auxiliar para construir o botão de Login com Google
-Widget _buildGoogleLoginButton(String text, VoidCallback onPressed) {
-  return ElevatedButton.icon(
-    icon: Image.asset( // Já com o nome do asset corrigido
-      'assets/images/google_logo.png',
-      height: 24,
-    ),
-    // CORREÇÃO: O widget Text foi envolvido por um Flexible.
-    label: Flexible(
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 18, color: Colors.black87),
+  Widget _buildGoogleLoginButton(String text, VoidCallback onPressed) {
+    return ElevatedButton.icon(
+      icon: Image.asset(
+        'assets/images/google_logo.png',
+        height: 24,
       ),
-    ),
-    onPressed: onPressed,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.white,
-      foregroundColor: Colors.black,
-      padding: const EdgeInsets.symmetric(vertical: 15),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
+      label: Flexible(
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 18, color: Colors.black87),
+        ),
       ),
-      minimumSize: const Size(double.infinity, 50),
-      side: const BorderSide(color: Colors.grey, width: 0.5),
-    ),
-  );
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(vertical: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        minimumSize: const Size(double.infinity, 50),
+        side: const BorderSide(color: Colors.grey, width: 0.5),
+      ),
+    );
+  }
 }
-}
+

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// CORREÇÃO: troque 'wtg_app' por 'wtg_front'
 import 'package:wtg_front/screens/login_screen.dart'; 
 
 void main() {
