@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
+import 'package:flutter/material.dart';
+import 'package:wtg_front/screens/registration_success_screen.dart';
+import 'package:wtg_front/services/api_service.dart';
 
 // --- PALETA DE CORES ATUALIZADA ---
 const Color primaryColor = Color(0xFF214886);

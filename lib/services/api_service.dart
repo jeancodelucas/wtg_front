@@ -7,6 +7,38 @@ class ApiService {
   // ATENÇÃO: Use o IP da sua máquina na rede local.
   final String _baseUrl = 'http://192.168.1.42:8080/api';
 
+    // NOVO: Etapa 1 - Inicia o registro e solicita o token
+  Future<Map<String, dynamic>> initiateRegistration(String email) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/users/register'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'email': email}),
+    );
+
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode == 200) {
+      return responseBody;
+    } else {
+      throw Exception(responseBody['message'] ?? 'Falha ao iniciar o registro.');
+    }
+  }
+
+    // NOVO: Etapa 2 - Valida o token enviado por e-mail
+  Future<Map<String, dynamic>> validateToken(String email, String token) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/users/register'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'email': email, 'token': token}),
+    );
+
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+    if (response.statusCode == 200) {
+      return responseBody;
+    } else {
+      throw Exception(responseBody['message'] ?? 'Falha na validação do token.');
+    }
+  }
+
   // Método de login ATUALIZADO para incluir geolocalização
   Future<Map<String, dynamic>> login({
     required String email,
@@ -64,17 +96,17 @@ class ApiService {
     }
   }
   
-  // Seus outros métodos (register, forgotPassword) permanecem aqui...
-  Future<void> register(Map<String, dynamic> registrationData) async {
+  // Etapa Final - Registra o usuário com todos os dados
+  Future<Map<String, dynamic>> register(Map<String, dynamic> registrationData) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/users/register'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode(registrationData),
     );
 
-    if (response.statusCode != 201) {
+    if (response.statusCode == 201) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
       String errorMessage = 'Erro desconhecido durante o cadastro.';
       if (errorBody['message'] != null) {
@@ -88,6 +120,7 @@ class ApiService {
       throw Exception(errorMessage);
     }
   }
+  
   Future<void> forgotPassword(String email) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/auth/forgot-password'),
