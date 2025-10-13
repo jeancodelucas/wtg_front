@@ -7,11 +7,13 @@ import 'package:permission_handler/permission_handler.dart';
 class LocationService {
   Timer? _timer;
 
-  // Pede permissão e retorna a posição atual. Usado no login.
+  /// Pede permissão e, se concedida, retorna a posição atual.
   Future<Position?> getCurrentPosition() async {
     final hasPermission = await _handleLocationPermission();
+    
+    // CORREÇÃO PRINCIPAL ESTÁ AQUI: a condição é "!hasPermission"
     if (!hasPermission) {
-      print("Permissão de localização negada.");
+      print("Permissão de localização negada pelo usuário.");
       return null;
     }
 
@@ -26,13 +28,12 @@ class LocationService {
     }
   }
 
-  // Inicia as atualizações periódicas. Usado na Home.
+  /// Inicia as atualizações periódicas de localização.
   void startLocationUpdates({required Function(Position position) onUpdate}) {
-    if (_timer?.isActive ?? false) return; // Já está rodando
+    if (_timer?.isActive ?? false) return;
 
     print("Iniciando atualizações de localização...");
     
-    // Executa a cada 10 minutos
     _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
       print("Timer ativado: buscando nova localização...");
       Position? position = await getCurrentPosition();
@@ -42,26 +43,30 @@ class LocationService {
     });
   }
 
-  // Para o serviço quando o usuário sai do app ou faz logout.
+  /// Para o serviço de atualização periódica.
   void stopLocationUpdates() {
     print("Parando atualizações de localização.");
     _timer?.cancel();
     _timer = null;
   }
   
-  // Lógica interna para gerenciar as permissões
+  /// Lógica corrigida para gerenciar as permissões de localização.
   Future<bool> _handleLocationPermission() async {
-    PermissionStatus status = await Permission.location.status;
-    if (status.isDenied) {
-      status = await Permission.location.request();
+    // 1. Solicita a permissão. O pop-up só aparece se o usuário ainda não escolheu.
+    PermissionStatus status = await Permission.location.request();
+
+    // 2. Verifica o resultado.
+    if (status.isGranted) {
+      return true; // Permissão concedida.
     }
     
     if (status.isPermanentlyDenied) {
-      // Opcional: mostrar um diálogo para o usuário ir para as configurações
-      openAppSettings();
+      // Se negou permanentemente, abre as configurações do app para habilitar manualmente.
+      await openAppSettings();
       return false;
     }
 
-    return status.isGranted;
+    // Para todos os outros casos (ex: 'denied'), a permissão não foi concedida.
+    return false;
   }
 }

@@ -7,6 +7,7 @@ import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:wtg_front/services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:wtg_front/screens/home_screen.dart';
 
 // --- PALETA DE CORES ---
 const Color primaryColor = Color(0xFF214886);
@@ -216,7 +217,8 @@ class __LoginFormContentState extends State<_LoginFormContent> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (context) => ProfileScreen(userData: responseData),
+              // Navega para a HomeScreen com a posição inicial
+              builder: (context) => HomeScreen(initialPosition: position),
             ),
           );
         }
@@ -636,4 +638,4 @@ Widget _buildSocialLoginRow() {
         ),
       ],
     );
-  }
+  } 

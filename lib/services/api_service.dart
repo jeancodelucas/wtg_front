@@ -88,4 +88,17 @@ class ApiService {
       throw Exception(errorMessage);
     }
   }
+  Future<void> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode != 200) {
+      // Se o servidor retornar um erro, lança uma exceção.
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao solicitar recuperação de senha');
+    }
+  }
 }
