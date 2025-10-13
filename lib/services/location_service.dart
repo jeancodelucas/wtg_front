@@ -7,32 +7,68 @@ import 'package:permission_handler/permission_handler.dart';
 class LocationService {
   Timer? _timer;
 
-  /// Pede permissão e, se concedida, retorna a posição atual.
+  /// Verifica permissão, serviço e retorna a posição atual.
   Future<Position?> getCurrentPosition() async {
+    // 1. Garante que o serviço de localização do dispositivo está ligado
+    bool isLocationServiceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!isLocationServiceEnabled) {
+      print("O serviço de localização (GPS) do dispositivo está desativado.");
+      // Se o GPS estiver desligado, não há o que fazer a não ser retornar nulo.
+      return null;
+    }
+
+    // 2. Garante que o app tem permissão para acessar a localização
     final hasPermission = await _handleLocationPermission();
-    
-    // CORREÇÃO PRINCIPAL ESTÁ AQUI: a condição é "!hasPermission"
     if (!hasPermission) {
       print("Permissão de localização negada pelo usuário.");
       return null;
     }
 
+    // 3. Se tudo estiver certo, obtém a posição
     try {
       return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.medium,
         timeLimit: const Duration(seconds: 15),
       );
     } catch (e) {
-      print("Erro ao obter localização: $e");
+      print("Erro ao obter a localização: $e");
       return null;
     }
   }
 
+  /// Lógica definitiva para gerenciar as permissões de localização.
+  Future<bool> _handleLocationPermission() async {
+    // Verifica o status atual da permissão
+    PermissionStatus status = await Permission.location.status;
+
+    // Se a permissão já foi concedida, retorna true.
+    if (status.isGranted) {
+      return true;
+    }
+
+    // Se a permissão ainda não foi solicitada ou foi negada uma vez, solicita novamente.
+    if (status.isDenied) {
+      status = await Permission.location.request();
+      // Retorna true se o usuário concedeu a permissão agora.
+      return status.isGranted;
+    }
+    
+    // Se a permissão foi negada permanentemente, direciona o usuário para as configurações.
+    if (status.isPermanentlyDenied) {
+      print("Permissão negada permanentemente. Abrindo configurações do app.");
+      await openAppSettings();
+      return false;
+    }
+
+    // Para qualquer outro caso, retorna false.
+    return false;
+  }
+  
   /// Inicia as atualizações periódicas de localização.
   void startLocationUpdates({required Function(Position position) onUpdate}) {
     if (_timer?.isActive ?? false) return;
 
-    print("Iniciando atualizações de localização...");
+    print("Iniciando atualizações periódicas de localização...");
     
     _timer = Timer.periodic(const Duration(minutes: 10), (timer) async {
       print("Timer ativado: buscando nova localização...");
@@ -48,25 +84,5 @@ class LocationService {
     print("Parando atualizações de localização.");
     _timer?.cancel();
     _timer = null;
-  }
-  
-  /// Lógica corrigida para gerenciar as permissões de localização.
-  Future<bool> _handleLocationPermission() async {
-    // 1. Solicita a permissão. O pop-up só aparece se o usuário ainda não escolheu.
-    PermissionStatus status = await Permission.location.request();
-
-    // 2. Verifica o resultado.
-    if (status.isGranted) {
-      return true; // Permissão concedida.
-    }
-    
-    if (status.isPermanentlyDenied) {
-      // Se negou permanentemente, abre as configurações do app para habilitar manualmente.
-      await openAppSettings();
-      return false;
-    }
-
-    // Para todos os outros casos (ex: 'denied'), a permissão não foi concedida.
-    return false;
   }
 }
