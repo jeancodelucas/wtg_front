@@ -77,37 +77,45 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
-  Future<void> _submitFinalRegistration() async {
+    Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Adiciona o userName ao mapa de dados, usando o e-mail já existente.
-      widget.registrationData['userName'] = widget.registrationData['email'];
-      
-      // Adiciona os outros campos preenchidos nesta tela
-      widget.registrationData['firstName'] = _nicknameController.text;
-      widget.registrationData['fullName'] = _nicknameController.text;
-      widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
-      widget.registrationData['pronouns'] = _selectedPronoun;
+      final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
 
       try {
-        await _apiService.register(widget.registrationData);
+        if (isSsoUser) {
+          // --- FLUXO DE ATUALIZAÇÃO PARA USUÁRIO SSO ---
+          final userUpdateData = {
+            "firstName": _nicknameController.text,
+            "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+            "birthday": _birthdayController.text, // Formato "dd/MM/yyyy"
+            "pronouns": _selectedPronoun,
+          };
+          final authToken = widget.registrationData['authToken'];
+          await _apiService.updateUser(userUpdateData, authToken);
+        } else {
+          // --- FLUXO DE CADASTRO NORMAL ---
+          widget.registrationData['userName'] = widget.registrationData['email'];
+          widget.registrationData['firstName'] = _nicknameController.text;
+          widget.registrationData['fullName'] = _nicknameController.text; // Pode ser ajustado
+          widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
+          widget.registrationData['birthday'] = _birthdayController.text;
+          widget.registrationData['pronouns'] = _selectedPronoun;
+          await _apiService.register(widget.registrationData);
+        }
 
         if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (context) => const RegistrationSuccessScreen(),
-            ),
+            MaterialPageRoute(builder: (context) => const RegistrationSuccessScreen()),
             (route) => false,
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text('Erro no cadastro: ${e.toString().replaceAll("Exception: ", "")}')),
+            SnackBar(content: Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
           );
         }
       } finally {

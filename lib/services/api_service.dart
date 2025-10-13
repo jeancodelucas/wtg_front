@@ -101,4 +101,38 @@ class ApiService {
       throw Exception(errorBody['message'] ?? 'Falha ao solicitar recuperação de senha');
     }
   }
+  Future<Map<String, dynamic>> loginWithGoogle(String token) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/auth/google'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'token': token}),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['error'] ?? 'Falha no login com Google');
+    }
+  }
+
+  // NOVO método para ATUALIZAR o usuário
+  Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData, String authToken) async {
+    final response = await http.put(
+      Uri.parse('$_baseUrl/users/update'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $authToken', // Assumindo autenticação via Bearer Token
+      },
+      body: jsonEncode(userData),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao atualizar usuário');
+    }
+  }
 }
+

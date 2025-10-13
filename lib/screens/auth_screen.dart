@@ -204,6 +204,7 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     scopes: ['email', 'profile'],
   );
 
+
   Future<void> _performLogin() async {
     FocusScope.of(context).unfocus();
     if (widget.formKey.currentState!.validate()) {
@@ -246,56 +247,57 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
+    Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
       if (googleUser == null) {
         if (mounted) setState(() => _isLoading = false);
         return;
       }
-      
-      const bool isNewUser = true;
-      final Map<String, dynamic> simulatedResponse = {
-        'user': {
-          'email': googleUser.email,
-          'fullName': googleUser.displayName,
-          'pictureUrl': googleUser.photoUrl,
-        },
-        'isNewUser': true,
-      };
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Não foi possível obter o token do Google.');
+      }
+
+      // Chama o backend para verificar o usuário
+      final responseData = await _apiService.loginWithGoogle(idToken);
+      final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
+      final user = responseData['user'];
 
       if (mounted) {
-        if (isNewUser) {
+        if (isRegistrationComplete) {
+          // Se o cadastro está completo, vai para a Home
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(loginResponse: {'user': user}),
+            ),
+          );
+        } else {
+          // Se não, vai para a tela de informações adicionais
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => AdditionalInfoScreen(
                 registrationData: {
-                  'email': googleUser.email,
-                  'fullName': googleUser.displayName,
-                  'pictureUrl': googleUser.photoUrl,
-                  'isSsoUser': true,
+                  'email': user['email'],
+                  'fullName': user['fullName'],
+                  'isSsoUser': true, // Flag para indicar que é um usuário SSO
+                  'authToken': responseData['token'], // Passa o token para a próxima tela
                 },
-              ),
-            ),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
-                loginResponse: simulatedResponse,
-                initialPosition: null, 
               ),
             ),
           );
         }
       }
-
     } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Erro ao tentar fazer login com o Google.')),
-      );
+      if(mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro no login com Google: ${error.toString()}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
