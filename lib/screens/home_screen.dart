@@ -1,123 +1,92 @@
 // lib/screens/home_screen.dart
 
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:wtg_front/services/api_service.dart';
-import 'package:wtg_front/services/location_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wtg_front/screens/auth_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final Position? initialPosition;
+  final Map<String, dynamic> loginResponse;
 
-  const HomeScreen({super.key, this.initialPosition});
+  const HomeScreen({
+    super.key,
+    this.initialPosition,
+    required this.loginResponse, // Parâmetro agora obrigatório
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final LocationService _locationService = LocationService();
-  final ApiService _apiService = ApiService();
-
-  List<dynamic> _promotions = [];
-  bool _isLoading = true;
-  String? _message; // Unifica as mensagens de erro e de status
+  String _prettyJson = '';
 
   @override
   void initState() {
     super.initState();
-    _initializeLocationAndFetchPromotions();
-    _locationService.startLocationUpdates(onUpdate: _fetchPromotions);
+    // Formata o JSON para uma visualização legível
+    const jsonEncoder = JsonEncoder.withIndent('  ');
+    _prettyJson = jsonEncoder.convert(widget.loginResponse);
   }
 
-  @override
-  void dispose() {
-    _locationService.stopLocationUpdates();
-    super.dispose();
-  }
+  /// Realiza o processo de logout
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
 
-  Future<void> _initializeLocationAndFetchPromotions() async {
-    if (widget.initialPosition != null) {
-      _fetchPromotions(widget.initialPosition!);
-    } else {
-      final position = await _locationService.getCurrentPosition();
-      if (position != null && mounted) {
-        _fetchPromotions(position);
-      } else if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _message = "É necessário acesso à localização para exibir eventos próximos.";
-        });
-      }
-    }
-  }
-
-  Future<void> _fetchPromotions(Position position) async {
-    // Evita reconstruir a tela com o loading em atualizações de fundo
-    if (!_isLoading) { 
-      print("Atualização silenciosa em segundo plano...");
-    }
-
-    try {
-      final promotions = await _apiService.filterPromotions(
-        latitude: position.latitude,
-        longitude: position.longitude,
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const AuthScreen()),
+        (Route<dynamic> route) => false,
       );
-      if (mounted) {
-        setState(() {
-          _promotions = promotions;
-          _isLoading = false;
-          if (_promotions.isEmpty) {
-            _message = "Nenhum evento encontrado por perto.";
-          } else {
-            _message = null; // Limpa a mensagem se encontrar promoções
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _message = "Não foi possível carregar os eventos. Tente novamente mais tarde.";
-        });
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Eventos Próximos')),
-      body: _buildBody(),
-    );
-  }
+    final userFirstName = widget.loginResponse['user']?['firstName'] ?? 'Usuário';
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    
-    if (_message != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Text(
-            _message!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Bem-vindo, $userFirstName'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Sair',
+            onPressed: _logout,
           ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Dados Recebidos do Login:',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: SelectableText(
+                _prettyJson,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
         ),
-      );
-    }
-    
-    return ListView.builder(
-      itemCount: _promotions.length,
-      itemBuilder: (context, index) {
-        final promotion = _promotions[index];
-        return ListTile(
-          title: Text(promotion['title'] ?? 'Sem Título'),
-          subtitle: Text(promotion['description'] ?? ''),
-        );
-      },
+      ),
     );
   }
 }

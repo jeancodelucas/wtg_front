@@ -256,15 +256,8 @@ class __LoginFormContentState extends State<_LoginFormContent> {
         return;
       }
       
-      const bool isNewUser = true;
-      final Map<String, dynamic> simulatedResponse = {
-        'user': {
-          'email': googleUser.email,
-          'fullName': googleUser.displayName,
-          'pictureUrl': googleUser.photoUrl,
-        },
-        'isNewUser': true,
-      };
+      // Lógica de simulação, conforme conversamos.
+      const bool isNewUser = true; 
 
       if (mounted) {
         if (isNewUser) {
@@ -281,14 +274,13 @@ class __LoginFormContentState extends State<_LoginFormContent> {
             ),
           );
         } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
-                loginResponse: simulatedResponse,
-                initialPosition: null, 
-              ),
-            ),
-          );
+          // Se o backend indicasse que o usuário já existe, faríamos o login direto.
+          // final responseData = await _apiService.loginWithGoogle(token);
+          // Navigator.of(context).pushReplacement(
+          //   MaterialPageRoute(
+          //     builder: (context) => HomeScreen(loginResponse: responseData),
+          //   ),
+          // );
         }
       }
 
@@ -305,36 +297,33 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     final emailDialogController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text('Recuperar Senha'),
-          content: TextField(
-            controller: emailDialogController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: "Digite seu e-mail",
-              prefixIcon: Icon(Icons.email_outlined),
-            ),
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('Recuperar Senha'),
+        content: TextField(
+          controller: emailDialogController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: "Digite seu e-mail",
+            prefixIcon: Icon(Icons.email_outlined),
           ),
-          actions: [
-            TextButton(
-              child: const Text('Cancelar'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              child: const Text('Enviar'),
-              onPressed: () {
-                if (emailDialogController.text.isNotEmpty) {
-                  Navigator.of(context).pop();
-                  _sendForgotPasswordRequest(emailDialogController.text);
-                }
-              },
-            ),
-          ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: const Text('Enviar'),
+            onPressed: () {
+              if (emailDialogController.text.isNotEmpty) {
+                Navigator.of(context).pop();
+                _sendForgotPasswordRequest(emailDialogController.text);
+              }
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -345,8 +334,7 @@ class __LoginFormContentState extends State<_LoginFormContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text(
-                  'Se o e-mail existir, um link de recuperação será enviado.')),
+              content: Text('Se o e-mail existir, um link de recuperação será enviado.')),
         );
       }
     } catch (e) {
@@ -736,4 +724,3 @@ Widget _buildDivider() {
       ],
     );
   }
-}

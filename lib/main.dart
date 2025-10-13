@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('pt', 'BR'),
       ],
-      // A tela inicial DEVE ser a AuthScreen para gerenciar o login
+      // A tela inicial DEVE ser a AuthScreen para gerenciar o login e cadastro.
       home: const AuthScreen(),
     );
   }
