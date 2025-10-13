@@ -1,6 +1,8 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:wtg_front/screens/login_screen.dart';
+import 'package:wtg_front/screens/auth_screen.dart'; // MUDANÇA AQUI
 
 void main() {
   runApp(const MyApp());
@@ -21,7 +23,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      // Adicionado para suportar localização, necessário para o DatePicker
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -30,8 +31,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('pt', 'BR'),
       ],
-      home: const LoginScreen(),
+      home: const AuthScreen(), // MUDANÇA AQUI
     );
   }
 }
-

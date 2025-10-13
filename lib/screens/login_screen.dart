@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+// import 'package:flutter_svg/flutter_svg.dart'; // REMOVIDO
 import 'package:http/http.dart' as http;
 import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:wtg_front/screens/registration_screen.dart';
@@ -21,8 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isPasswordVisible = false;
   bool _rememberMe = false;
 
-  // Variável para controlar o Toggler
-  int _selectedToggleIndex = 0; // 0 para Entrar, 1 para Cadastre-se
+  int _selectedToggleIndex = 0;
 
   @override
   void dispose() {
@@ -32,9 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _performLogin() async {
-    // Esconde o teclado
     FocusScope.of(context).unfocus();
-
     setState(() => _isLoading = true);
 
     try {
@@ -42,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen> {
         _emailController.text,
         _passwordController.text,
       );
-
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -148,13 +144,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   height: 140,
                   width: 140,
-                  child: SvgPicture.asset('assets/images/LaRuaLogo.svg'),
+                  // MODIFICADO DE SvgPicture.asset PARA Image.asset
+                  child: Image.asset('assets/images/LaRuaLogo.png'),
                 ),
                 const SizedBox(height: 16),
                 // Nome do App
                 SizedBox(
                   height: 40,
-                  child: SvgPicture.asset('assets/images/LaRuaNameLogo.svg'),
+                  // MODIFICADO DE SvgPicture.asset PARA Image.asset
+                  child: Image.asset('assets/images/LaRuaNameLogo.png'),
                 ),
                 const SizedBox(height: 40),
                 // Botões de Acesso (Toggler)
@@ -192,6 +190,9 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
+  // O restante do código permanece o mesmo...
+  // ... (Cole o resto dos métodos _buildLoginToggler, _buildTextField, etc. aqui)
 
   Widget _buildLoginToggler() {
     return Container(
@@ -245,11 +246,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 setState(() {
                   _selectedToggleIndex = 1;
                 });
-                // Navega para a tela de cadastro
                 Navigator.of(context).push(MaterialPageRoute(
                   builder: (context) => const RegistrationScreen(),
                 )).then((_) {
-                  // Quando voltar da tela de cadastro, reseta o toggle para "Entrar"
                   setState(() {
                     _selectedToggleIndex = 0;
                   });

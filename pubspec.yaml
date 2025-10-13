@@ -19,8 +19,7 @@ dependencies:
   shared_preferences: ^2.2.3
   intl: any
   
-  # Pacote para renderizar imagens SVG
-  flutter_svg: ^2.0.10+1
+  # A dependência 'flutter_svg' foi removida pois não é mais necessária
 
   cupertino_icons: ^1.0.8
 
@@ -33,8 +32,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  # Declaração correta e explícita dos assets
+  # Declaração atualizada para os arquivos PNG
   assets:
-    - assets/images/LaRuaLogo.svg
-    - assets/images/LaRuaNameLogo.svg
+    - assets/images/LaRuaLogo.png
+    - assets/images/LaRuaNameLogo.png
     - assets/images/google_logo.png
+    - assets/images/Celebration.png 
