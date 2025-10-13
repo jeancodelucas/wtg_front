@@ -82,6 +82,11 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Adiciona o userName ao mapa de dados, usando o e-mail já existente.
+      widget.registrationData['userName'] = widget.registrationData['email'];
+      
+      // Adiciona os outros campos preenchidos nesta tela
       widget.registrationData['firstName'] = _nicknameController.text;
       widget.registrationData['fullName'] = _nicknameController.text;
       widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');

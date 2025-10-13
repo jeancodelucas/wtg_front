@@ -17,7 +17,7 @@ class MyApp extends StatelessWidget {
       title: 'La Rua',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        fontFamily: 'Inter', // Opcional: para um visual mais próximo ao design
+        fontFamily: 'Inter',
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -27,7 +27,8 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('pt', 'BR'),
       ],
-      home: const AuthScreen(), // A tela inicial DEVE ser a AuthScreen
+      // A tela inicial DEVE ser a AuthScreen para gerenciar o login
+      home: const AuthScreen(),
     );
   }
 }

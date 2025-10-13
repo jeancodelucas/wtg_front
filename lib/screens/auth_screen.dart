@@ -3,11 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/additional_info_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
-import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:wtg_front/services/location_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:wtg_front/screens/home_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 // --- PALETA DE CORES ---
 const Color primaryColor = Color(0xFF214886);
@@ -199,6 +199,10 @@ class __LoginFormContentState extends State<_LoginFormContent> {
   final _locationService = LocationService();
   bool _isLoading = false;
   bool _rememberMe = false;
+  
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
 
   Future<void> _performLogin() async {
     FocusScope.of(context).unfocus();
@@ -217,8 +221,10 @@ class __LoginFormContentState extends State<_LoginFormContent> {
         if (mounted) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              // Navega para a HomeScreen com a posição inicial
-              builder: (context) => HomeScreen(initialPosition: position),
+              builder: (context) => HomeScreen(
+                initialPosition: position,
+                loginResponse: responseData,
+              ),
             ),
           );
         }
@@ -240,37 +246,95 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     }
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+      
+      const bool isNewUser = true;
+      final Map<String, dynamic> simulatedResponse = {
+        'user': {
+          'email': googleUser.email,
+          'fullName': googleUser.displayName,
+          'pictureUrl': googleUser.photoUrl,
+        },
+        'isNewUser': true,
+      };
+
+      if (mounted) {
+        if (isNewUser) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  'email': googleUser.email,
+                  'fullName': googleUser.displayName,
+                  'pictureUrl': googleUser.photoUrl,
+                  'isSsoUser': true,
+                },
+              ),
+            ),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                loginResponse: simulatedResponse,
+                initialPosition: null, 
+              ),
+            ),
+          );
+        }
+      }
+
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Erro ao tentar fazer login com o Google.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   Future<void> _forgotPassword() async {
     final emailDialogController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Text('Recuperar Senha'),
-        content: TextField(
-          controller: emailDialogController,
-          keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            hintText: "Digite seu e-mail",
-            prefixIcon: Icon(Icons.email_outlined),
+      builder: (context) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          title: const Text('Recuperar Senha'),
+          content: TextField(
+            controller: emailDialogController,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              hintText: "Digite seu e-mail",
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
           ),
-        ),
-        actions: [
-          TextButton(
-            child: const Text('Cancelar'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          ElevatedButton(
-            child: const Text('Enviar'),
-            onPressed: () {
-              if (emailDialogController.text.isNotEmpty) {
-                Navigator.of(context).pop();
-                _sendForgotPasswordRequest(emailDialogController.text);
-              }
-            },
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: const Text('Enviar'),
+              onPressed: () {
+                if (emailDialogController.text.isNotEmpty) {
+                  Navigator.of(context).pop();
+                  _sendForgotPasswordRequest(emailDialogController.text);
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -281,7 +345,8 @@ class __LoginFormContentState extends State<_LoginFormContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Se o e-mail existir, um link de recuperação será enviado.')),
+              content: Text(
+                  'Se o e-mail existir, um link de recuperação será enviado.')),
         );
       }
     } catch (e) {
@@ -337,6 +402,38 @@ class __LoginFormContentState extends State<_LoginFormContent> {
           child: const Text(
             'Esqueci a senha',
             style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSocialLoginRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: _isLoading ? null : _handleGoogleSignIn,
+            icon: Image.asset('assets/images/google_logo.png', height: 24),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: borderColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.apple, color: Colors.black, size: 28),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: borderColor),
+            ),
           ),
         ),
       ],
@@ -487,6 +584,38 @@ class _RegistrationFormContentState extends State<_RegistrationFormContent> {
       ),
     );
   }
+
+    Widget _buildSocialLoginRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: Image.asset('assets/images/google_logo.png', height: 24),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: borderColor),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.apple, color: Colors.black, size: 28),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              side: BorderSide(color: borderColor),
+            ),
+          ),
+        ),
+      ],
+    );
+  } 
 }
 
 // --- WIDGETS COMPARTILHADOS ---
@@ -607,35 +736,4 @@ Widget _buildDivider() {
       ],
     );
   }
-
-Widget _buildSocialLoginRow() {
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: Image.asset('assets/images/google_logo.png', height: 24),
-            label: const Text(''),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: borderColor),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: () {},
-            icon: const Icon(Icons.apple, color: Colors.black, size: 28),
-            label: const Text(''),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              side: BorderSide(color: borderColor),
-            ),
-          ),
-        ),
-      ],
-    );
-  } 
+}

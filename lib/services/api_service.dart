@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   // ATENÇÃO: Use o IP da sua máquina na rede local.
-  final String _baseUrl = 'http://192.168.1.10:8080/api';
+  final String _baseUrl = 'http://192.168.1.42:8080/api';
 
   // Método de login ATUALIZADO para incluir geolocalização
   Future<Map<String, dynamic>> login({
