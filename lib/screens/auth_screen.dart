@@ -5,9 +5,11 @@ import 'package:wtg_front/screens/additional_info_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:http/http.dart' as http;
+import 'package:wtg_front/services/location_service.dart';
+import 'package:geolocator/geolocator.dart';
 
-// --- PALETA DE CORES ATUALIZADA ---
-const Color primaryColor = Color(0xFF214886); // Novo azul para botões e nomes
+// --- PALETA DE CORES ---
+const Color primaryColor = Color(0xFF214886);
 const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color backgroundColor = Colors.white;
@@ -24,8 +26,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   bool _showLogin = true;
-
-  final _formKey = GlobalKey<FormState>(); // Chave para o formulário
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
@@ -56,7 +57,7 @@ class _AuthScreenState extends State<AuthScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            child: Form( // Envolvemos os campos comuns em um Form
+            child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -65,9 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   SizedBox(
                     height: 140,
                     width: 140,
-                    child: ClipOval(
-                      child: Image.asset('assets/images/LaRuaLogo.png'),
-                    ),
+                    child: ClipOval(child: Image.asset('assets/images/LaRuaLogo.png')),
                   ),
                   const SizedBox(height: 16),
                   SizedBox(
@@ -75,12 +74,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Image.asset('assets/images/LaRuaNameLogo.png'),
                   ),
                   const SizedBox(height: 40),
-                  _AuthToggler(
-                    isLogin: _showLogin,
-                    onToggle: _toggleForm,
-                  ),
+                  _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 24),
-                  
                   _SharedTextField(
                     controller: _emailController,
                     label: 'Email',
@@ -93,7 +88,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 16),
                   _SharedPasswordField(controller: _passwordController, label: 'Senha'),
-
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     transitionBuilder: (Widget child, Animation<double> animation) {
@@ -128,8 +122,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// Demais widgets...
-
+// --- WIDGET DO SELETOR (TOGGLER) ---
 class _AuthToggler extends StatelessWidget {
   final bool isLogin;
   final ValueChanged<bool> onToggle;
@@ -188,6 +181,7 @@ class _AuthToggler extends StatelessWidget {
   }
 }
 
+// --- CONTEÚDO DO FORMULÁRIO DE LOGIN ---
 class _LoginFormContent extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController emailController;
@@ -201,6 +195,7 @@ class _LoginFormContent extends StatefulWidget {
 
 class __LoginFormContentState extends State<_LoginFormContent> {
   final _apiService = ApiService();
+  final _locationService = LocationService();
   bool _isLoading = false;
   bool _rememberMe = false;
 
@@ -208,10 +203,15 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     FocusScope.of(context).unfocus();
     if (widget.formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
+      
+      final position = await _locationService.getCurrentPosition();
+
       try {
         final responseData = await _apiService.login(
-          widget.emailController.text,
-          widget.passwordController.text,
+          email: widget.emailController.text,
+          password: widget.passwordController.text,
+          latitude: position?.latitude,
+          longitude: position?.longitude,
         );
         if (mounted) {
           Navigator.of(context).pushReplacement(
@@ -238,6 +238,61 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     }
   }
 
+  Future<void> _forgotPassword() async {
+    final emailDialogController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        title: const Text('Recuperar Senha'),
+        content: TextField(
+          controller: emailDialogController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: const InputDecoration(
+            hintText: "Digite seu e-mail",
+            prefixIcon: Icon(Icons.email_outlined),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: const Text('Enviar'),
+            onPressed: () {
+              if (emailDialogController.text.isNotEmpty) {
+                Navigator.of(context).pop();
+                _sendForgotPasswordRequest(emailDialogController.text);
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendForgotPasswordRequest(String email) async {
+    setState(() => _isLoading = true);
+    try {
+      await _apiService.forgotPassword(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Se o e-mail existir, um link de recuperação será enviado.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao solicitar recuperação: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -255,7 +310,7 @@ class __LoginFormContentState extends State<_LoginFormContent> {
     );
   }
 
-    Widget _buildOptionsRow() {
+  Widget _buildOptionsRow() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -276,7 +331,7 @@ class __LoginFormContentState extends State<_LoginFormContent> {
           ],
         ),
         TextButton(
-          onPressed: () {},
+          onPressed: _forgotPassword,
           child: const Text(
             'Esqueci a senha',
             style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
@@ -287,6 +342,7 @@ class __LoginFormContentState extends State<_LoginFormContent> {
   }
 }
 
+// --- CONTEÚDO DO FORMULÁRIO DE CADASTRO ---
 class _RegistrationFormContent extends StatefulWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController emailController;
@@ -350,7 +406,6 @@ class _RegistrationFormContentState extends State<_RegistrationFormContent> {
     FocusScope.of(context).unfocus();
     _validateConfirmPassword();
 
-    // Valida o formulário global (para o email) e as condições locais
     if (widget.formKey.currentState!.validate()) {
       final allCriteriaMet = _has8Chars && _hasLowercase && _hasUppercase && _hasNumber && _hasSpecialChar;
       
@@ -432,6 +487,7 @@ class _RegistrationFormContentState extends State<_RegistrationFormContent> {
   }
 }
 
+// --- WIDGETS COMPARTILHADOS ---
 class _SharedTextField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -454,18 +510,11 @@ class _SharedTextField extends StatelessWidget {
           decoration: InputDecoration(
             filled: true,
             fillColor: fieldBackgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: primaryColor),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.transparent)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryColor)),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red)),
+            focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 2)),
           ),
         ),
       ],
@@ -501,28 +550,17 @@ class _SharedPasswordFieldState extends State<_SharedPasswordField> {
             filled: true,
             fillColor: fieldBackgroundColor,
             errorText: widget.validationError,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: primaryColor),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.transparent)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryColor)),
+            errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red)),
+            focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.red, width: 2)),
             suffixIcon: IconButton(
               icon: Icon(
                 _isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                 color: lightTextColor,
               ),
-              onPressed: () {
-                setState(() {
-                  _isPasswordVisible = !_isPasswordVisible;
-                });
-              },
+              onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
             ),
           ),
         ),

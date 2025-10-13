@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:wtg_front/screens/auth_screen.dart'; // MUDANÇA AQUI
+import 'package:wtg_front/screens/auth_screen.dart'; // Garanta que este import está correto
 
 void main() {
   runApp(const MyApp());
@@ -14,14 +14,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'WTG App',
+      title: 'La Rua',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
-        ),
+        fontFamily: 'Inter', // Opcional: para um visual mais próximo ao design
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -31,7 +27,7 @@ class MyApp extends StatelessWidget {
       supportedLocales: const [
         Locale('pt', 'BR'),
       ],
-      home: const AuthScreen(), // MUDANÇA AQUI
+      home: const AuthScreen(), // A tela inicial DEVE ser a AuthScreen
     );
   }
 }

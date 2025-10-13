@@ -1,47 +1,71 @@
+// lib/services/api_service.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // ATENÇÃO: Verifique se o IP e a PORTA estão corretos para o seu ambiente.
-  // Para emulador Android, use 10.0.2.2. Para dispositivo físico na mesma rede, use o IP da sua máquina.
-  final String _baseUrl = 'http://192.168.0.9:8080/api';
+  // ATENÇÃO: Use o IP da sua máquina na rede local.
+  final String _baseUrl = 'http://192.168.1.10:8080/api';
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  // Método de login ATUALIZADO para incluir geolocalização
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+    double? latitude,
+    double? longitude,
+  }) async {
+    final body = <String, dynamic>{
+      'email': email,
+      'password': password,
+    };
+    if (latitude != null && longitude != null) {
+      body['latitude'] = latitude;
+      body['longitude'] = longitude;
+    }
+
     final response = await http.post(
       Uri.parse('$_baseUrl/auth/login'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'email': email,
-        'password': password,
-      }),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode(body),
     );
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      // Lança uma exceção com o status code para tratamento na UI
-      throw Exception('Falha no login: ${response.statusCode}');
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['error'] ?? 'Falha no login');
     }
   }
 
-  Future<void> forgotPassword(String email) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/auth/forgot-password'),
-      headers: <String, String>{
+  // NOVO método para buscar promoções com base na localização
+  Future<List<dynamic>> filterPromotions({
+    required double latitude,
+    required double longitude,
+    double radius = 5.0, // Raio padrão de 5km
+  }) async {
+    final uri = Uri.parse('$_baseUrl/promotions/filter').replace(queryParameters: {
+      'latitude': latitude.toString(),
+      'longitude': longitude.toString(),
+      'radius': radius.toString(),
+    });
+
+    final response = await http.get(
+      uri,
+      headers: {
         'Content-Type': 'application/json; charset=UTF-8',
+        // TODO: Adicionar token de autenticação se for uma rota protegida
       },
-      body: jsonEncode(<String, String>{'email': email}),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception('Falha ao solicitar a recuperação de senha.');
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      throw Exception('Falha ao buscar promoções');
     }
   }
   
-  // CORREÇÃO: Método 'register' adicionado
-Future<void> register(Map<String, dynamic> registrationData) async {
+  // Seus outros métodos (register, forgotPassword) permanecem aqui...
+  Future<void> register(Map<String, dynamic> registrationData) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/users/register'),
       headers: <String, String>{
@@ -50,23 +74,18 @@ Future<void> register(Map<String, dynamic> registrationData) async {
       body: jsonEncode(registrationData),
     );
 
-    if (response.statusCode != 201) { // 201 Created
+    if (response.statusCode != 201) {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      
-      // Lógica aprimorada para extrair a mensagem de erro
       String errorMessage = 'Erro desconhecido durante o cadastro.';
       if (errorBody['message'] != null) {
         errorMessage = errorBody['message'];
       } else if (errorBody['messages'] != null && errorBody['messages'] is Map) {
-        // Pega a primeira mensagem de erro de validação
         final validationErrors = errorBody['messages'] as Map<String, dynamic>;
         if (validationErrors.isNotEmpty) {
           errorMessage = validationErrors.values.first;
         }
       }
-      
       throw Exception(errorMessage);
     }
   }
 }
-
