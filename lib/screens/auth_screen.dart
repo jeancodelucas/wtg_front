@@ -256,8 +256,15 @@ class __LoginFormContentState extends State<_LoginFormContent> {
         return;
       }
       
-      // Lógica de simulação, conforme conversamos.
-      const bool isNewUser = true; 
+      const bool isNewUser = true;
+      final Map<String, dynamic> simulatedResponse = {
+        'user': {
+          'email': googleUser.email,
+          'fullName': googleUser.displayName,
+          'pictureUrl': googleUser.photoUrl,
+        },
+        'isNewUser': true,
+      };
 
       if (mounted) {
         if (isNewUser) {
@@ -274,13 +281,14 @@ class __LoginFormContentState extends State<_LoginFormContent> {
             ),
           );
         } else {
-          // Se o backend indicasse que o usuário já existe, faríamos o login direto.
-          // final responseData = await _apiService.loginWithGoogle(token);
-          // Navigator.of(context).pushReplacement(
-          //   MaterialPageRoute(
-          //     builder: (context) => HomeScreen(loginResponse: responseData),
-          //   ),
-          // );
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                loginResponse: simulatedResponse,
+                initialPosition: null, 
+              ),
+            ),
+          );
         }
       }
 
