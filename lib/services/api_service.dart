@@ -1,37 +1,65 @@
 // lib/services/api_service.dart
 
 import 'dart:convert';
+import 'dart:io' show Platform; // Import necessário para verificar a plataforma
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // ATENÇÃO: Use o IP da sua máquina na rede local.
-  final String _baseUrl = 'http://192.168.1.42:8080/api';
-
-    // NOVO: Etapa 1 - Inicia o registro e solicita o token
-  Future<Map<String, dynamic>> initiateRegistration(String email) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/users/register'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'email': email}),
-    );
-
-    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
-    if (response.statusCode == 200) {
-      return responseBody;
+  /// Função privada que determina a URL base correta para o backend.
+  /// Isto é crucial para o desenvolvimento em diferentes plataformas.
+  String _getBaseUrl() {
+    if (Platform.isAndroid) {
+      // O emulador Android usa este endereço especial para aceder ao 'localhost' da máquina anfitriã.
+      return 'http://10.0.2.2:8080/api';
     } else {
-      throw Exception(responseBody['message'] ?? 'Falha ao iniciar o registro.');
+      // O simulador iOS, Web, macOS e Windows podem usar 'localhost' diretamente.
+      return 'http://localhost:8080/api';
     }
   }
 
-    // NOVO: Etapa 2 - Valida o token enviado por e-mail
+  // A _baseUrl agora é inicializada de forma segura usando a função acima.
+  late final String _baseUrl = _getBaseUrl();
+
+  /// ETAPA 1 DO REGISTO: Envia o e-mail do utilizador para receber um token de verificação.
+  Future<Map<String, dynamic>> initiateRegistration(String email) async {
+    final uri = Uri.parse('$_baseUrl/users/register');
+    print('Enviando requisição de início de registo para: $uri');
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'email': email}),
+      );
+
+      print('Resposta do início de registo: ${response.statusCode}');
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+      if (response.statusCode == 200) {
+        return responseBody;
+      } else {
+        throw Exception(responseBody['message'] ?? 'Falha ao iniciar o registo.');
+      }
+    } on http.ClientException catch (e) {
+      print('Erro de cliente ao iniciar registo: ${e.message}');
+      throw Exception('Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
+    }
+  }
+
+  /// ETAPA 2 DO REGISTO: Valida o token recebido por e-mail.
   Future<Map<String, dynamic>> validateToken(String email, String token) async {
+    final uri = Uri.parse('$_baseUrl/users/register');
+    print('Enviando requisição de validação de token para: $uri');
+
     final response = await http.post(
-      Uri.parse('$_baseUrl/users/register'),
+      uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({'email': email, 'token': token}),
     );
 
+    print('Resposta da validação do token: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
     if (response.statusCode == 200) {
       return responseBody;
     } else {
@@ -39,27 +67,51 @@ class ApiService {
     }
   }
 
-  // Método de login ATUALIZADO para incluir geolocalização
+  /// ETAPA FINAL DO REGISTO: Envia todos os dados do utilizador para criar a conta.
+  Future<Map<String, dynamic>> register(Map<String, dynamic> registrationData) async {
+    final uri = Uri.parse('$_baseUrl/users/register');
+    print('Enviando requisição de registo final para: $uri');
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode(registrationData),
+    );
+
+    print('Resposta do registo final: ${response.statusCode}');
+    
+    if (response.statusCode == 201) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      String errorMessage = errorBody['message'] ?? 'Ocorreu um erro durante o cadastro.';
+      throw Exception(errorMessage);
+    }
+  }
+
+  /// Realiza o login do utilizador com e-mail e palavra-passe.
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
     double? latitude,
     double? longitude,
   }) async {
-    final body = <String, dynamic>{
-      'email': email,
-      'password': password,
-    };
+    final uri = Uri.parse('$_baseUrl/auth/login');
+    print('Enviando requisição de login para: $uri');
+
+    final body = <String, dynamic>{'email': email, 'password': password};
     if (latitude != null && longitude != null) {
       body['latitude'] = latitude;
       body['longitude'] = longitude;
     }
 
     final response = await http.post(
-      Uri.parse('$_baseUrl/auth/login'),
+      uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode(body),
     );
+
+    print('Resposta do login: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
@@ -69,7 +121,66 @@ class ApiService {
     }
   }
 
-  // NOVO método para buscar promoções com base na localização
+  /// Realiza o login ou registo de um utilizador através do token do Google (SSO).
+  Future<Map<String, dynamic>> loginWithGoogle(String token) async {
+    final uri = Uri.parse('$_baseUrl/auth/google');
+    print('Enviando requisição de login SSO para: $uri');
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json; charset=UTF-8'},
+        body: jsonEncode({'token': token}),
+      );
+
+      print('Resposta do login SSO: ${response.statusCode}');
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(utf8.decode(response.bodyBytes));
+      } else {
+        final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+        throw Exception(errorBody['error'] ?? 'Falha no login com Google');
+      }
+    } on http.ClientException catch (e) {
+      print('Erro de cliente no login SSO: ${e.message}');
+      throw Exception('Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
+    }
+  }
+
+  /// Envia um pedido para redefinição de palavra-passe.
+  Future<void> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('$_baseUrl/auth/forgot-password'),
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({'email': email}),
+    );
+
+    if (response.statusCode != 200) {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao solicitar recuperação de senha');
+    }
+  }
+
+  /// Atualiza os dados de um utilizador autenticado.
+  Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData, String authToken) async {
+    final response = await http.put(
+      Uri.parse('$_baseUrl/users/update'),
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $authToken', // Assumindo autenticação via Bearer Token
+      },
+      body: jsonEncode(userData),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao atualizar usuário');
+    }
+  }
+
+  /// Filtra promoções com base na localização e raio.
   Future<List<dynamic>> filterPromotions({
     required double latitude,
     required double longitude,
@@ -95,77 +206,4 @@ class ApiService {
       throw Exception('Falha ao buscar promoções');
     }
   }
-  
-  // Etapa Final - Registra o usuário com todos os dados
-  Future<Map<String, dynamic>> register(Map<String, dynamic> registrationData) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/users/register'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode(registrationData),
-    );
-
-    if (response.statusCode == 201) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
-    } else {
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      String errorMessage = 'Erro desconhecido durante o cadastro.';
-      if (errorBody['message'] != null) {
-        errorMessage = errorBody['message'];
-      } else if (errorBody['messages'] != null && errorBody['messages'] is Map) {
-        final validationErrors = errorBody['messages'] as Map<String, dynamic>;
-        if (validationErrors.isNotEmpty) {
-          errorMessage = validationErrors.values.first;
-        }
-      }
-      throw Exception(errorMessage);
-    }
-  }
-  
-  Future<void> forgotPassword(String email) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/auth/forgot-password'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'email': email}),
-    );
-
-    if (response.statusCode != 200) {
-      // Se o servidor retornar um erro, lança uma exceção.
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorBody['message'] ?? 'Falha ao solicitar recuperação de senha');
-    }
-  }
-  Future<Map<String, dynamic>> loginWithGoogle(String token) async {
-    final response = await http.post(
-      Uri.parse('$_baseUrl/auth/google'),
-      headers: {'Content-Type': 'application/json; charset=UTF-8'},
-      body: jsonEncode({'token': token}),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
-    } else {
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorBody['error'] ?? 'Falha no login com Google');
-    }
-  }
-
-  // NOVO método para ATUALIZAR o usuário
-  Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData, String authToken) async {
-    final response = await http.put(
-      Uri.parse('$_baseUrl/users/update'),
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $authToken', // Assumindo autenticação via Bearer Token
-      },
-      body: jsonEncode(userData),
-    );
-
-    if (response.statusCode == 200) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
-    } else {
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorBody['message'] ?? 'Falha ao atualizar usuário');
-    }
-  }
 }
-
