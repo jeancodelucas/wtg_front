@@ -17,8 +17,10 @@ dependencies:
   http: ^1.2.1
   google_sign_in: ^6.2.1
   shared_preferences: ^2.2.3
-  # A versão do intl será gerenciada pelo flutter_localizations
   intl: any
+  
+  # Pacote para renderizar imagens SVG
+  flutter_svg: ^2.0.10+1
 
   cupertino_icons: ^1.0.8
 
@@ -30,6 +32,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  # Declaração correta e explícita dos assets
   assets:
-    - assets/images/
-
+    - assets/images/LaRuaLogo.svg
+    - assets/images/LaRuaNameLogo.svg
+    - assets/images/google_logo.png

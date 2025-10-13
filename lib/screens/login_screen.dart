@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:wtg_front/screens/profile_screen.dart';
+import 'package:wtg_front/screens/registration_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:wtg_front/screens/registration_screen.dart'; // Import da nova tela
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,22 +13,16 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  late final TextEditingController _emailController;
-  late final TextEditingController _passwordController;
-  late final ApiService _apiService;
-  late final GoogleSignIn _googleSignIn;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _apiService = ApiService();
 
   bool _isLoading = false;
   bool _isPasswordVisible = false;
+  bool _rememberMe = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _emailController = TextEditingController();
-    _passwordController = TextEditingController();
-    _apiService = ApiService();
-    _googleSignIn = GoogleSignIn();
-  }
+  // Variável para controlar o Toggler
+  int _selectedToggleIndex = 0; // 0 para Entrar, 1 para Cadastre-se
 
   @override
   void dispose() {
@@ -38,9 +32,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _performLogin() async {
-    setState(() {
-      _isLoading = true;
-    });
+    // Esconde o teclado
+    FocusScope.of(context).unfocus();
+
+    setState(() => _isLoading = true);
 
     try {
       final responseData = await _apiService.login(
@@ -73,42 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
-    }
-  }
-
-  Future<void> _performGoogleLogin() async {
-    // Implementação mockada
-    setState(() {
-      _isLoading = true;
-    });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login com Google ainda não implementado.')),
-      );
-    }
-  }
-
-  Future<void> _performAppleLogin() async {
-    // Implementação mockada
-    setState(() {
-      _isLoading = true;
-    });
-    await Future.delayed(const Duration(seconds: 2));
-    setState(() {
-      _isLoading = false;
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login com Apple ainda não implementado.')),
-      );
     }
   }
 
@@ -118,7 +79,8 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Text('Recuperar Senha'),
           content: TextField(
             controller: emailController,
@@ -173,78 +135,56 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFFff9a9e),
-              Color(0xFFfad0c4),
-              Color(0xFFa18cd1),
-            ],
-          ),
-        ),
+      backgroundColor: Colors.white,
+      body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset('assets/images/LaRuaLogo.png', height: 250),
-                const Text(
-                  'LaRua',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                  ),
+                // Logo Circular
+                SizedBox(
+                  height: 140,
+                  width: 140,
+                  child: SvgPicture.asset('assets/images/LaRuaLogo.svg'),
                 ),
-                const SizedBox(height: 30),
+                const SizedBox(height: 16),
+                // Nome do App
+                SizedBox(
+                  height: 40,
+                  child: SvgPicture.asset('assets/images/LaRuaNameLogo.svg'),
+                ),
+                const SizedBox(height: 40),
+                // Botões de Acesso (Toggler)
+                _buildLoginToggler(),
+                const SizedBox(height: 24),
+                // Campos de Email e Senha
                 _buildTextField(
-                    _emailController, 'E-mail', TextInputType.emailAddress),
-                const SizedBox(height: 15),
+                  controller: _emailController,
+                  label: 'Email',
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
                 _buildTextField(
-                    _passwordController, 'Password', TextInputType.visiblePassword),
-                const SizedBox(height: 30),
-                if (_isLoading)
-                  const CircularProgressIndicator(color: Colors.white)
-                else
-                  Column(
-                    children: [
-                      _buildLoginButton(
-                          'LOGIN', _performLogin, const Color(0xFF6A1B9A)),
-                      const SizedBox(height: 15),
-                      _buildGoogleLoginButton(
-                          'Login with Google', _performGoogleLogin),
-                      const SizedBox(height: 15),
-                      _buildAppleLoginButton(
-                          'Login with Apple', _performAppleLogin),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: _forgotPassword,
-                        child: const Text(
-                          'Esqueci minha senha',
-                          style: TextStyle(
-                              color: Colors.black54,
-                              fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (context) => const RegistrationScreen(),
-                          ));
-                        },
-                        child: const Text(
-                          'Não tem uma conta? Cadastre-se',
-                          style: TextStyle(
-                              color: Color(0xFF6A1B9A),
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
+                  controller: _passwordController,
+                  label: 'Senha',
+                  isPassword: true,
+                ),
+                const SizedBox(height: 16),
+                // Opções de Login
+                _buildOptionsRow(),
+                const SizedBox(height: 24),
+                // Botão de Entrar
+                _buildPrimaryButton('Entrar', _performLogin),
+                const SizedBox(height: 32),
+                // Divisor "Ou"
+                _buildDivider(),
+                const SizedBox(height: 32),
+                // Botões de Login Social
+                _buildSocialLoginRow(),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -253,111 +193,247 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // ESTE MÉTODO FOI CORRIGIDO PARA O ESTILO DA IMAGEM
-  Widget _buildTextField(TextEditingController controller, String label,
-      TextInputType keyboardType) {
-    bool isPassword = label == 'Password';
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: isPassword && !_isPasswordVisible,
-      style: const TextStyle(color: Colors.black87),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: Colors.grey[600]),
-        // Linha inferior
-        enabledBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.grey.shade400),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFF6A1B9A), width: 2),
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-                icon: Icon(
-                  _isPasswordVisible
-                      ? Icons.visibility_off
-                      : Icons.visibility,
-                  color: Colors.grey,
+  Widget _buildLoginToggler() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedToggleIndex = 0;
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                decoration: BoxDecoration(
+                  color: _selectedToggleIndex == 0
+                      ? Colors.white
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: _selectedToggleIndex == 0
+                      ? [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.3),
+                            spreadRadius: 1,
+                            blurRadius: 5,
+                          )
+                        ]
+                      : [],
                 ),
-                onPressed: () {
+                child: Center(
+                  child: Text(
+                    'Entrar',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _selectedToggleIndex == 0
+                          ? Colors.black
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  _selectedToggleIndex = 1;
+                });
+                // Navega para a tela de cadastro
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => const RegistrationScreen(),
+                )).then((_) {
+                  // Quando voltar da tela de cadastro, reseta o toggle para "Entrar"
                   setState(() {
-                    _isPasswordVisible = !_isPasswordVisible;
+                    _selectedToggleIndex = 0;
+                  });
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: Text(
+                    'Cadastre-se',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType keyboardType = TextInputType.text,
+    bool isPassword = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          obscureText: isPassword && !_isPasswordVisible,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.grey[100],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: isPassword
+                ? IconButton(
+                    icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _isPasswordVisible = !_isPasswordVisible;
+                      });
+                    },
+                  )
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOptionsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: _rememberMe,
+                onChanged: (value) {
+                  setState(() {
+                    _rememberMe = value ?? false;
                   });
                 },
-              )
-            : null,
-      ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('Mantenha-me conectado'),
+          ],
+        ),
+        TextButton(
+          onPressed: _forgotPassword,
+          child: const Text(
+            'Esqueci a senha',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF377DFF),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildLoginButton(String text, VoidCallback onPressed, Color color) {
+  Widget _buildPrimaryButton(String text, VoidCallback onPressed) {
     return ElevatedButton(
-      onPressed: onPressed,
+      onPressed: _isLoading ? null : onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: color,
+        backgroundColor: const Color(0xFF377DFF),
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(12),
         ),
         minimumSize: const Size(double.infinity, 50),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 3,
+              ))
+          : Text(
+              text,
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
     );
   }
 
-  Widget _buildGoogleLoginButton(String text, VoidCallback onPressed) {
-    return ElevatedButton.icon(
-      icon: Image.asset(
-        'assets/images/google_logo.png',
-        height: 24.0,
-        width: 24.0,
-      ),
-      label: Text(
-        text,
-        style: const TextStyle(fontSize: 18, color: Colors.black87),
-      ),
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.grey[300])),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            'Ou',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
         ),
-        minimumSize: const Size(double.infinity, 50),
-        side: BorderSide(color: Colors.grey.shade400, width: 1),
-      ),
+        Expanded(child: Divider(color: Colors.grey[300])),
+      ],
     );
   }
 
-  Widget _buildAppleLoginButton(String text, VoidCallback onPressed) {
-    return ElevatedButton.icon(
-      icon: const Icon(
-        Icons.apple,
-        color: Colors.white,
-        size: 28.0,
-      ),
-      label: Text(
-        text,
-        style: const TextStyle(
-            fontSize: 18, color: Colors.white, fontWeight: FontWeight.w600),
-      ),
-      onPressed: onPressed,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+  Widget _buildSocialLoginRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              // TODO: Implementar lógica de login com Google
+            },
+            icon: Image.asset('assets/images/google_logo.png', height: 24),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
         ),
-        minimumSize: const Size(double.infinity, 50),
-      ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: OutlinedButton.icon(
+            onPressed: () {
+              // TODO: Implementar lógica de login com Apple
+            },
+            icon: const Icon(Icons.apple, color: Colors.black, size: 28),
+            label: const Text(''),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: BorderSide(color: Colors.grey.shade300),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
-
