@@ -13,7 +13,10 @@ const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class TokenScreen extends StatefulWidget {
   final String email;
-  const TokenScreen({super.key, required this.email});
+  final double? latitude;
+  final double? longitude;
+
+  const TokenScreen({super.key, required this.email,this.latitude,this.longitude,});
 
   @override
   State<TokenScreen> createState() => _TokenScreenState();

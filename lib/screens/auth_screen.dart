@@ -37,7 +37,26 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _rememberMe = false;
   bool _isPasswordVisible = false;
 
+//Armazena a posição do usuário
+  Position? _currentPosition;
+  
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+
+    @override
+  void initState() {
+    super.initState();
+    // --- MUDANÇA 2: Solicita a localização ao iniciar a tela ---
+    _initializeLocation();
+  }
+
+  Future<void> _initializeLocation() async {
+    final position = await _locationService.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        _currentPosition = position;
+      });
+    }
+  }
 
   void _toggleForm(bool showLogin) {
     if (_showLogin != showLogin) {
@@ -64,7 +83,7 @@ class _AuthScreenState extends State<AuthScreen> {
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     
-    final position = await _locationService.getCurrentPosition();
+    final position = _currentPosition;
 
     try {
       final responseData = await _apiService.login(
@@ -110,7 +129,11 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (context) => TokenScreen(email: _emailController.text),
+            builder: (context) => TokenScreen(
+              email: _emailController.text,
+              latitude: _currentPosition?.latitude,
+              longitude: _currentPosition?.longitude,
+              ),
           ),
         );
       }

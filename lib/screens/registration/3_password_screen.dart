@@ -11,7 +11,11 @@ const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class PasswordScreen extends StatefulWidget {
   final String email;
-  const PasswordScreen({super.key, required this.email});
+  final double? latitude;
+  final double? longitude;
+  const PasswordScreen({super.key, required this.email,
+    this.latitude,
+    this.longitude,});
 
   @override
   State<PasswordScreen> createState() => _PasswordScreenState();
@@ -65,6 +69,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
       'email': widget.email,
       'password': _passwordController.text,
       'confirmPassword': _confirmPasswordController.text,
+      'latitude': widget.latitude,
+      'longitude': widget.longitude,
     };
 
     Navigator.of(context).push(MaterialPageRoute(
