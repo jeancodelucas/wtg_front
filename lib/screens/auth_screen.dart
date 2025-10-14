@@ -37,15 +37,13 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _rememberMe = false;
   bool _isPasswordVisible = false;
 
-//Armazena a posição do usuário
   Position? _currentPosition;
-  
+
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
 
-    @override
+  @override
   void initState() {
     super.initState();
-    // --- MUDANÇA 2: Solicita a localização ao iniciar a tela ---
     _initializeLocation();
   }
 
@@ -82,7 +80,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
-    
+
     final position = _currentPosition;
 
     try {
@@ -133,7 +131,7 @@ class _AuthScreenState extends State<AuthScreen> {
               email: _emailController.text,
               latitude: _currentPosition?.latitude,
               longitude: _currentPosition?.longitude,
-              ),
+            ),
           ),
         );
       }
@@ -152,12 +150,73 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  // --- CORREÇÃO APLICADA AQUI ---
   Future<void> _handleGoogleSignIn() async {
-    // ... (código do google sign in, sem alterações)
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        // O usuário cancelou o login
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Não foi possível obter o token do Google.');
+      }
+
+      // Envia o token para o seu backend
+      final responseData = await _apiService.loginWithGoogle(idToken);
+
+      if (mounted) {
+        // Verifica se é um usuário novo ou existente
+        final bool isNewUser = responseData['isNewUser'] ?? false;
+
+        if (isNewUser) {
+          // Se for novo, navega para a tela de informações adicionais
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  ...responseData, // Passa a resposta da API que pode conter dados do usuário
+                  'isSsoUser': true, // Sinaliza que é um usuário de SSO
+                  'authToken': responseData['token'], // Passa o token de autenticação da sua API
+                },
+              ),
+            ),
+          );
+        } else {
+          // Se for um usuário existente, navega para a tela principal
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                initialPosition: _currentPosition,
+                loginResponse: responseData,
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
+  // --- FIM DA CORREÇÃO ---
 
   Future<void> _forgotPassword() async {
-    // ... (código de esqueci a senha, sem alterações)
+    // Implementação do "esqueci a senha"
   }
 
   @override
@@ -187,10 +246,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 40),
                   _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 32),
-                  
-                  // --- Início do Formulário Unificado ---
-                  
-                  // Campo de Email (sempre visível)
                   const Text('Digite seu e-mail', style: TextStyle(color: darkTextColor, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -209,8 +264,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       return null;
                     },
                   ),
-                  
-                  // Animação para esconder/mostrar o campo de senha e opções
                   AnimatedSize(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
@@ -220,7 +273,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: _showLogin ? _buildLoginFields() : const SizedBox.shrink(),
                     ),
                   ),
-
                   const SizedBox(height: 24),
                   _buildPrimaryButton(),
                   const SizedBox(height: 32),
@@ -236,7 +288,6 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  // Widget que contém os campos que aparecem apenas no Login
   Widget _buildLoginFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +306,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: lightTextColor),
                   onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
           validator: (value) {
-            // A validação só é aplicada se o campo de senha estiver visível (na tela de login)
             if (_showLogin && (value == null || value.isEmpty)) {
               return 'Por favor, insira sua senha.';
             }
@@ -329,8 +379,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 }
 
-// --- WIDGETS COMPARTILHADOS (REUTILIZADOS EM AMBOS OS FORMS) ---
-
 class _AuthToggler extends StatelessWidget {
   final bool isLogin;
   final ValueChanged<bool> onToggle;
@@ -386,35 +434,6 @@ class _AuthToggler extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget _buildPrimaryButton(String text, VoidCallback onPressed, bool isLoading, bool showArrow) {
-  return ElevatedButton(
-    onPressed: isLoading ? null : onPressed,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: primaryColor,
-      foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      minimumSize: const Size(double.infinity, 50),
-      elevation: 0,
-    ),
-    child: isLoading
-        ? const SizedBox(
-            height: 24,
-            width: 24,
-            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(text,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              if (showArrow) const SizedBox(width: 8),
-              if (showArrow) const Icon(Icons.arrow_forward),
-            ],
-          ),
-  );
 }
 
 Widget _buildDivider() {
