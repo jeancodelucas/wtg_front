@@ -1,30 +1,20 @@
 // lib/services/api_service.dart
 
 import 'dart:convert';
-import 'dart:io' show Platform; // Import necessário para verificar a plataforma
+import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  // --- CORREÇÃO APLICADA E VALIDADA ---
-  // Define a URL base dinamicamente para cada cenário de desenvolvimento.
   final String _baseUrl = _getBaseUrl();
 
-  // Função auxiliar para determinar a URL correta
   static String _getBaseUrl() {
     if (Platform.isAndroid) {
-      // O emulador Android usa 10.0.2.2 para se referir ao localhost da máquina host
       return 'http://10.0.2.2:8080/api';
     } else {
-      // Para simulador iOS, web, ou desktop rodando na mesma máquina que o servidor
-      // ATENÇÃO: Se for testar num dispositivo físico (iPhone ou Android),
-      // você DEVE substituir 'localhost' pelo IP da sua máquina na rede Wi-Fi.
-      // Ex: 'http://192.168.1.25:8080/api'
       return 'http://192.168.1.42:8080/api';
     }
   }
 
-
-  /// ETAPA 1 DO REGISTO: Envia o e-mail do utilizador para receber um token de verificação.
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de início de registo para: $uri');
@@ -50,7 +40,6 @@ class ApiService {
     }
   }
 
-  /// ETAPA 2 DO REGISTO: Valida o token recebido por e-mail.
   Future<Map<String, dynamic>> validateToken(String email, String token) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de validação de token para: $uri');
@@ -71,10 +60,10 @@ class ApiService {
     }
   }
 
-  /// ETAPA FINAL DO REGISTO: Envia todos os dados do utilizador para criar a conta.
   Future<Map<String, dynamic>> register(Map<String, dynamic> registrationData) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de registo final para: $uri');
+    print('Payload do registo: ${jsonEncode(registrationData)}'); // Log para depuração
 
     final response = await http.post(
       uri,
@@ -93,7 +82,6 @@ class ApiService {
     }
   }
 
-  /// Realiza o login do utilizador com e-mail e palavra-passe.
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -125,16 +113,22 @@ class ApiService {
     }
   }
 
-  /// Realiza o login ou registo de um utilizador através do token do Google (SSO).
-  Future<Map<String, dynamic>> loginWithGoogle(String token) async {
+  // --- CORREÇÃO APLICADA AQUI ---
+  Future<Map<String, dynamic>> loginWithGoogle(String token, {double? latitude, double? longitude}) async {
     final uri = Uri.parse('$_baseUrl/auth/google');
     print('Enviando requisição de login SSO para: $uri');
+
+    final body = <String, dynamic>{'token': token};
+    if (latitude != null && longitude != null) {
+      body['latitude'] = latitude;
+      body['longitude'] = longitude;
+    }
 
     try {
       final response = await http.post(
         uri,
         headers: {'Content-Type': 'application/json; charset=UTF-8'},
-        body: jsonEncode({'token': token}),
+        body: jsonEncode(body),
       );
 
       print('Resposta do login SSO: ${response.statusCode}');
@@ -150,8 +144,8 @@ class ApiService {
       throw Exception('Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
     }
   }
+  // --- FIM DA CORREÇÃO ---
 
-  /// Envia um pedido para redefinição de palavra-passe.
   Future<void> forgotPassword(String email) async {
     final response = await http.post(
       Uri.parse('$_baseUrl/auth/forgot-password'),
@@ -165,13 +159,12 @@ class ApiService {
     }
   }
 
-  /// Atualiza os dados de um utilizador autenticado.
   Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData, String authToken) async {
     final response = await http.put(
       Uri.parse('$_baseUrl/users/update'),
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $authToken', // Assumindo autenticação via Bearer Token
+        'Authorization': 'Bearer $authToken',
       },
       body: jsonEncode(userData),
     );
@@ -184,11 +177,10 @@ class ApiService {
     }
   }
 
-  /// Filtra promoções com base na localização e raio.
   Future<List<dynamic>> filterPromotions({
     required double latitude,
     required double longitude,
-    double radius = 5.0, // Raio padrão de 5km
+    double radius = 5.0,
   }) async {
     final uri = Uri.parse('$_baseUrl/promotions/filter').replace(queryParameters: {
       'latitude': latitude.toString(),
@@ -200,7 +192,6 @@ class ApiService {
       uri,
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
-        // TODO: Adicionar token de autenticação se for uma rota protegida
       },
     );
 

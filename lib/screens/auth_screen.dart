@@ -157,7 +157,6 @@ class _AuthScreenState extends State<AuthScreen> {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // O usuário cancelou o login
         setState(() => _isLoading = false);
         return;
       }
@@ -169,28 +168,35 @@ class _AuthScreenState extends State<AuthScreen> {
         throw Exception('Não foi possível obter o token do Google.');
       }
 
-      // Envia o token para o seu backend
-      final responseData = await _apiService.loginWithGoogle(idToken);
+      final position = _currentPosition;
+
+      // Envia o token e a localização para o seu backend
+      final responseData = await _apiService.loginWithGoogle(
+        idToken,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
 
       if (mounted) {
-        // Verifica se é um usuário novo ou existente
         final bool isNewUser = responseData['isNewUser'] ?? false;
 
         if (isNewUser) {
-          // Se for novo, navega para a tela de informações adicionais
+          // Navega para a tela de informações adicionais, passando a localização
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => AdditionalInfoScreen(
                 registrationData: {
-                  ...responseData, // Passa a resposta da API que pode conter dados do usuário
-                  'isSsoUser': true, // Sinaliza que é um usuário de SSO
-                  'authToken': responseData['token'], // Passa o token de autenticação da sua API
+                  ...responseData,
+                  'isSsoUser': true,
+                  'authToken': responseData['token'],
+                  'latitude': position?.latitude,
+                  'longitude': position?.longitude,
                 },
               ),
             ),
           );
         } else {
-          // Se for um usuário existente, navega para a tela principal
+          // Navega para a tela principal
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomeScreen(
