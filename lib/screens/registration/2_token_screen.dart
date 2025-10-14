@@ -8,7 +8,6 @@ import 'package:wtg_front/services/api_service.dart';
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color borderColor = Color(0xFFD1D5DB);
-// --- MUDANÇA DE COR APLICADA ---
 const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class TokenScreen extends StatefulWidget {
@@ -16,7 +15,12 @@ class TokenScreen extends StatefulWidget {
   final double? latitude;
   final double? longitude;
 
-  const TokenScreen({super.key, required this.email,this.latitude,this.longitude,});
+  const TokenScreen({
+    super.key,
+    required this.email,
+    this.latitude,
+    this.longitude,
+  });
 
   @override
   State<TokenScreen> createState() => _TokenScreenState();
@@ -56,7 +60,11 @@ class _TokenScreenState extends State<TokenScreen> {
       await _apiService.initiateRegistration(widget.email);
       startTimer();
     } catch (e) {
-      // Tratar erro
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao reenviar token: ${e.toString()}')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -70,16 +78,20 @@ class _TokenScreenState extends State<TokenScreen> {
     try {
       await _apiService.validateToken(widget.email, token);
       if (mounted) {
+        // CORREÇÃO: Passar latitude e longitude para a próxima tela
         Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) => PasswordScreen(email: widget.email),
+          builder: (context) => PasswordScreen(
+            email: widget.email,
+            latitude: widget.latitude,
+            longitude: widget.longitude,
+          ),
         ));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text(e.toString().replaceAll("Exception: ", ""))),
+              content: Text(e.toString().replaceAll("Exception: ", ""))),
         );
       }
     } finally {

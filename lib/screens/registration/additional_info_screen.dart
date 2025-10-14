@@ -11,7 +11,6 @@ const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
 const Color borderColor = Color(0xFFD1D5DB);
-// --- MUDANÇA DE COR APLICADA ---
 const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 
@@ -114,12 +113,16 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           final authToken = widget.registrationData['authToken'];
           apiResponse = await _apiService.updateUser(userUpdateData, authToken);
         } else {
+          // CORREÇÃO: Adicionar latitude e longitude aos dados de registro
           widget.registrationData['userName'] = widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
           widget.registrationData['fullName'] = _nicknameController.text;
           widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
           widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
+          
+          // Latitude e longitude já estão em widget.registrationData desde a tela anterior
+          
           apiResponse = await _apiService.register(widget.registrationData);
         }
 

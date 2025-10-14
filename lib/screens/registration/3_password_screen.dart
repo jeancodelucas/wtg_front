@@ -6,16 +6,19 @@ import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color borderColor = Color(0xFFD1D5DB);
-// --- MUDANÇA DE COR APLICADA ---
 const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class PasswordScreen extends StatefulWidget {
   final String email;
   final double? latitude;
   final double? longitude;
-  const PasswordScreen({super.key, required this.email,
+
+  const PasswordScreen({
+    super.key,
+    required this.email,
     this.latitude,
-    this.longitude,});
+    this.longitude,
+  });
 
   @override
   State<PasswordScreen> createState() => _PasswordScreenState();
@@ -65,6 +68,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
       return;
     }
 
+    // CORREÇÃO: Montar o mapa de dados incluindo a localização
     final registrationData = {
       'email': widget.email,
       'password': _passwordController.text,
