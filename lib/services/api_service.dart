@@ -15,6 +15,7 @@ class ApiService {
     }
   }
 
+
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de início de registo para: $uri');
@@ -146,16 +147,49 @@ class ApiService {
   }
   // --- FIM DA CORREÇÃO ---
 
-  Future<void> forgotPassword(String email) async {
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final uri = Uri.parse('$_baseUrl/auth/forgot-password');
+    print('Enviando requisição de esqueci a senha para: $uri');
+
     final response = await http.post(
-      Uri.parse('$_baseUrl/auth/forgot-password'),
+      uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({'email': email}),
     );
 
-    if (response.statusCode != 200) {
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorBody['message'] ?? 'Falha ao solicitar recuperação de senha');
+    print('Resposta do esqueci a senha: ${response.statusCode}');
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      return responseBody;
+    } else {
+      throw Exception(responseBody['message'] ?? 'Falha ao solicitar recuperação de senha.');
+    }
+  }
+
+    Future<Map<String, dynamic>> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/auth/reset-password');
+    print('Enviando requisição para redefinir a senha para: $uri');
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json; charset=UTF-8'},
+      body: jsonEncode({
+        'token': token,
+        'newPassword': newPassword,
+      }),
+    );
+
+    print('Resposta da redefinição de senha: ${response.statusCode}');
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      return responseBody;
+    } else {
+      throw Exception(responseBody['message'] ?? 'Falha ao redefinir a senha.');
     }
   }
 

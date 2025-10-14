@@ -31,6 +31,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
       _hasUppercase = false,
       _hasNumber = false,
       _hasSpecialChar = false;
+  bool _isPasswordObscured = true;
+  bool _isConfirmPasswordObscured = true;
 
   @override
   void initState() {

@@ -1,6 +1,7 @@
 // lib/screens/auth_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:wtg_front/screens/reset_password/reset_token_screen.dart';
 import 'package:wtg_front/screens/registration/2_token_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:http/http.dart' as http;
@@ -150,14 +151,12 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // --- CORREÇÃO APLICADA AQUI ---
   Future<void> _handleGoogleSignIn() async {
     setState(() => _isLoading = true);
     try {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        // O usuário cancelou o login
         setState(() => _isLoading = false);
         return;
       }
@@ -169,7 +168,6 @@ class _AuthScreenState extends State<AuthScreen> {
         throw Exception('Não foi possível obter o token do Google.');
       }
 
-      // Garante que a posição mais recente seja usada antes de chamar a API
       final position = await _locationService.getCurrentPosition();
       if (mounted) {
         setState(() {
@@ -177,7 +175,6 @@ class _AuthScreenState extends State<AuthScreen> {
         });
       }
 
-      // Envia o token e a localização para o seu backend
       final responseData = await _apiService.loginWithGoogle(
         idToken,
         latitude: position?.latitude,
@@ -188,7 +185,6 @@ class _AuthScreenState extends State<AuthScreen> {
         final bool isNewUser = responseData['isNewUser'] ?? false;
 
         if (isNewUser) {
-          // Se for novo, navega para a tela de informações adicionais
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => AdditionalInfoScreen(
@@ -196,7 +192,6 @@ class _AuthScreenState extends State<AuthScreen> {
                   ...responseData,
                   'isSsoUser': true,
                   'authToken': responseData['token'],
-                   // Passa a localização para o próximo passo do cadastro
                   'latitude': position?.latitude,
                   'longitude': position?.longitude,
                 },
@@ -204,7 +199,6 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           );
         } else {
-          // Se for um usuário existente, navega para a tela principal
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomeScreen(
@@ -227,11 +221,88 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     }
   }
+
+  // --- CORREÇÃO APLICADA AQUI ---
+  Future<void> _forgotPassword() async {
+    final emailForResetController = TextEditingController(text: _emailController.text);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        bool isSending = false;
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              title: const Text('Recuperar Senha'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Digite seu e-mail para receber um código de recuperação.'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: emailForResetController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      hintText: "Digite seu e-mail",
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancelar'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                ElevatedButton(
+                  onPressed: isSending ? null : () async {
+                    if (emailForResetController.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Por favor, preencha o e-mail.')),
+                      );
+                      return;
+                    }
+                    
+                    setDialogState(() => isSending = true);
+
+                    try {
+                      await _apiService.forgotPassword(emailForResetController.text);
+                      if (!mounted) return;
+
+                      Navigator.of(context).pop();
+                      
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => ResetTokenScreen(email: emailForResetController.text),
+                      ));
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Código de recuperação enviado para seu e-mail!')),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
+                      );
+                    } finally {
+                       if (mounted) {
+                          setDialogState(() => isSending = false);
+                       }
+                    }
+                  },
+                  child: isSending 
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Enviar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   // --- FIM DA CORREÇÃO ---
 
-  Future<void> _forgotPassword() async {
-    // Implementação do "esqueci a senha"
-  }
 
   @override
   void dispose() {
