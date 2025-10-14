@@ -8,7 +8,11 @@ import 'package:wtg_front/services/api_service.dart';
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color borderColor = Color(0xFFD1D5DB);
-const Color breadcrumbActiveColor = Color(0xFFff4757);
+
+// --- CORES DO BREADCRUMB ADICIONADAS ---
+const Color verificationStepColor = Color(0xFFFF554D);
+const Color passwordStepColor = Color(0xFF10ac84);
+const Color infoStepColor = Color(0xFF1F73F8);
 
 class TokenScreen extends StatefulWidget {
   final String email;
@@ -36,10 +40,22 @@ class _TokenScreenState extends State<TokenScreen> {
   int _timerSeconds = 90;
   Timer? _timer;
 
+  final List<Color> _borderColors = const [
+    Color(0xFFee5253),
+    Color(0xFF2e86de),
+    Color(0xFFff9f43),
+    Color(0xFF341f97),
+  ];
+
   @override
   void initState() {
     super.initState();
     startTimer();
+    for (var node in _focusNodes) {
+      node.addListener(() {
+        setState(() {});
+      });
+    }
   }
 
   void startTimer() {
@@ -78,7 +94,6 @@ class _TokenScreenState extends State<TokenScreen> {
     try {
       await _apiService.validateToken(widget.email, token);
       if (mounted) {
-        // CORREÇÃO: Passar latitude e longitude para a próxima tela
         Navigator.of(context).push(MaterialPageRoute(
           builder: (context) => PasswordScreen(
             email: widget.email,
@@ -90,8 +105,7 @@ class _TokenScreenState extends State<TokenScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(e.toString().replaceAll("Exception: ", ""))),
+          SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))),
         );
       }
     } finally {
@@ -106,6 +120,9 @@ class _TokenScreenState extends State<TokenScreen> {
       controller.dispose();
     }
     for (var focusNode in _focusNodes) {
+      focusNode.removeListener(() {
+        setState(() {});
+      });
       focusNode.dispose();
     }
     super.dispose();
@@ -131,7 +148,7 @@ class _TokenScreenState extends State<TokenScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildBreadcrumbs(currentStep: 1),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 32),
                       const Text('Digite o código de verificação',
                           style: TextStyle(
                               fontSize: 24,
@@ -146,6 +163,9 @@ class _TokenScreenState extends State<TokenScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(4, (index) {
+                          final bool isFocused = _focusNodes[index].hasFocus;
+                          final Color focusedColor = _borderColors[index];
+
                           return SizedBox(
                             width: 60,
                             height: 60,
@@ -156,10 +176,17 @@ class _TokenScreenState extends State<TokenScreen> {
                               keyboardType: TextInputType.number,
                               maxLength: 1,
                               decoration: InputDecoration(
-                                  counterText: '',
-                                  border: OutlineInputBorder(
-                                      borderRadius:
-                                          BorderRadius.circular(12))),
+                                counterText: '',
+                                enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide:
+                                        const BorderSide(color: borderColor)),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide(
+                                      color: focusedColor, width: 2.0),
+                                ),
+                              ),
                               onChanged: (value) {
                                 if (value.isNotEmpty && index < 3) {
                                   _focusNodes[index + 1].requestFocus();
@@ -184,7 +211,10 @@ class _TokenScreenState extends State<TokenScreen> {
                         child: _isLoading
                             ? const CircularProgressIndicator(color: Colors.white)
                             : const Text('Continuar',
-                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                                style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 16),
                       Center(
@@ -205,31 +235,64 @@ class _TokenScreenState extends State<TokenScreen> {
   Widget _buildBreadcrumbs({required int currentStep}) {
     return Row(
       children: [
-        _buildDot(isActive: currentStep >= 1),
-        _buildConnector(isActive: currentStep >= 2),
-        _buildDot(isActive: currentStep >= 2),
-        _buildConnector(isActive: currentStep >= 3),
-        _buildDot(isActive: currentStep >= 3),
+        _buildStep(
+          icon: Icons.mark_email_read_outlined,
+          label: 'Verificação',
+          stepColor: verificationStepColor,
+          isComplete: currentStep > 1,
+          isActive: currentStep == 1,
+        ),
+        _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
+        _buildStep(
+          icon: Icons.lock_outline,
+          label: 'Senha',
+          stepColor: passwordStepColor,
+          isComplete: currentStep > 2,
+          isActive: currentStep == 2,
+        ),
+        _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
+        _buildStep(
+          icon: Icons.person_outline,
+          label: 'Dados',
+          stepColor: infoStepColor,
+          isComplete: false, 
+          isActive: currentStep == 3,
+        ),
       ],
     );
   }
 
-  Widget _buildDot({required bool isActive}) {
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        color: isActive ? breadcrumbActiveColor : borderColor,
-        shape: BoxShape.circle,
-      ),
+  Widget _buildStep({required IconData icon, required String label, required Color stepColor, required bool isActive, required bool isComplete}) {
+    final color = isActive || isComplete ? stepColor : Colors.grey[400];
+    
+    return Column(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isActive || isComplete ? stepColor : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(color: color!, width: 2),
+          ),
+          child: Icon(
+            icon,
+            color: isActive || isComplete ? Colors.white : Colors.grey[400],
+            size: 22,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: darkTextColor, fontSize: 12, fontWeight: isActive || isComplete ? FontWeight.bold : FontWeight.normal)),
+      ],
     );
   }
 
-  Widget _buildConnector({required bool isActive}) {
+  Widget _buildConnector({required bool isComplete, required Color color}) {
     return Expanded(
       child: Container(
         height: 2,
-        color: isActive ? breadcrumbActiveColor : borderColor,
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        color: isComplete ? color : Colors.grey[300],
       ),
     );
   }

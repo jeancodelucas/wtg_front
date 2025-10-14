@@ -134,12 +134,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 40),
+              const Text('Nova Senha', style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _passwordController,
                 obscureText: _isPasswordObscured,
                 decoration: InputDecoration(
-                  labelText: 'Nova Senha',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: fieldBackgroundColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                   suffixIcon: IconButton(
                     icon: Icon(_isPasswordObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
                     onPressed: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
@@ -147,12 +150,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 24),
+                  const Text('Confirme a nova senha', style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
+              const SizedBox(height: 8),
               TextFormField(
                 controller: _confirmPasswordController,
                 obscureText: _isConfirmPasswordObscured,
                 decoration: InputDecoration(
-                  labelText: 'Confirme a nova senha',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: fieldBackgroundColor,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                    suffixIcon: IconButton(
                     icon: Icon(_isConfirmPasswordObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
                     onPressed: () => setState(() => _isConfirmPasswordObscured = !_isConfirmPasswordObscured),

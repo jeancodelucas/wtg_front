@@ -1,18 +1,22 @@
 // lib/screens/registration/additional_info_screen.dart
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
+import 'dart:io' show Platform;
 
 const Color primaryColor = Color(0xFF214886);
 const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
-const Color borderColor = Color(0xFFD1D5DB);
-const Color breadcrumbActiveColor = Color(0xFFff4757);
 
+// --- CORES DO BREADCRUMB ADICIONADAS ---
+const Color verificationStepColor = Color(0xFFFF554D);
+const Color passwordStepColor = Color(0xFF10ac84);
+const Color infoStepColor = Color(0xFF1F73F8);
 
 class AdditionalInfoScreen extends StatefulWidget {
   final Map<String, dynamic> registrationData;
@@ -30,16 +34,19 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   final _nicknameController = TextEditingController();
   final _cpfController = TextEditingController();
   final _birthdayController = TextEditingController();
+  final _pronounController = TextEditingController();
+
   String? _selectedPronoun;
   bool _isLoading = false;
 
-  final List<String> _pronouns = ['ele/dele', 'ela/dela', 'elu/delu', 'Outro'];
+  final List<String> _pronouns = ['Ele/Dele', 'Ela/Dela', 'Elu/Delu', 'Outro', 'Prefiro não dizer'];
 
   @override
   void dispose() {
     _nicknameController.dispose();
     _cpfController.dispose();
     _birthdayController.dispose();
+    _pronounController.dispose();
     super.dispose();
   }
 
@@ -64,6 +71,15 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
+    FocusScope.of(context).unfocus();
+    if (Platform.isIOS) {
+      _showIOSDatePicker();
+    } else {
+      _showAndroidDatePicker();
+    }
+  }
+
+  void _showAndroidDatePicker() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: DateTime.now(),
@@ -78,7 +94,119 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
-  // --- CORREÇÃO APLICADA AQUI ---
+  void _showIOSDatePicker() {
+    showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 250,
+        color: const Color.fromARGB(255, 255, 255, 255),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 200,
+              child: CupertinoDatePicker(
+                initialDateTime: DateTime.now(),
+                maximumDate: DateTime.now(),
+                minimumDate: DateTime(1900),
+                mode: CupertinoDatePickerMode.date,
+                onDateTimeChanged: (picked) {
+                  setState(() {
+                    _birthdayController.text = DateFormat('dd/MM/yyyy').format(picked);
+                  });
+                },
+              ),
+            ),
+            CupertinoButton(
+              child: const Text('OK'),
+              onPressed: () => Navigator.of(context).pop(),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _selectPronoun() {
+    FocusScope.of(context).unfocus();
+    if (Platform.isIOS) {
+      _showIOSPronounPicker();
+    } else {
+      _showAndroidPronounDialog();
+    }
+  }
+
+  void _showIOSPronounPicker() {
+    final initialIndex = _selectedPronoun != null ? _pronouns.indexOf(_selectedPronoun!) : 0;
+
+    showCupertinoModalPopup(
+      context: context,
+      builder: (_) => Container(
+        height: 250,
+        color: const Color.fromARGB(255, 255, 255, 255),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 200,
+              child: CupertinoPicker(
+                scrollController: FixedExtentScrollController(initialItem: initialIndex),
+                itemExtent: 32.0,
+                onSelectedItemChanged: (index) {
+                  setState(() {
+                    _selectedPronoun = _pronouns[index];
+                    _pronounController.text = _pronouns[index];
+                  });
+                },
+                children: _pronouns.map((pronoun) => Center(child: Text(pronoun))).toList(),
+              ),
+            ),
+            CupertinoButton(
+              child: const Text('OK'),
+              onPressed: () {
+                if (_selectedPronoun == null) {
+                  setState(() {
+                    _selectedPronoun = _pronouns[initialIndex];
+                    _pronounController.text = _pronouns[initialIndex];
+                  });
+                }
+                Navigator.of(context).pop();
+              },
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAndroidPronounDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Selecione seu pronome'),
+          content: SizedBox(
+            width: double.minPositive,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: _pronouns.length,
+              itemBuilder: (BuildContext context, int index) {
+                return ListTile(
+                  title: Text(_pronouns[index]),
+                  onTap: () {
+                    setState(() {
+                      _selectedPronoun = _pronouns[index];
+                      _pronounController.text = _pronouns[index];
+                    });
+                    Navigator.of(context).pop();
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
@@ -105,27 +233,23 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
       try {
         if (isSsoUser) {
-          // Para utilizadores SSO, montamos o payload para ATUALIZAR o perfil
           final userUpdateData = {
             "firstName": _nicknameController.text,
             "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
             "birthday": birthdateToSend,
             "pronouns": _selectedPronoun,
-            // Adiciona a geolocalização que veio da tela anterior
             "latitude": widget.registrationData['latitude'],
             "longitude": widget.registrationData['longitude'],
           };
           final authToken = widget.registrationData['authToken'];
           apiResponse = await _apiService.updateUser(userUpdateData, authToken);
         } else {
-          // Para registo normal, adicionamos os novos campos ao mapa existente
           widget.registrationData['userName'] = widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
           widget.registrationData['fullName'] = _nicknameController.text;
           widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
           widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
-          // Latitude e longitude já estão em widget.registrationData
           apiResponse = await _apiService.register(widget.registrationData);
         }
 
@@ -146,7 +270,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
       }
     }
   }
-  // --- FIM DA CORREÇÃO ---
 
   @override
   Widget build(BuildContext context) {
@@ -169,7 +292,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildBreadcrumbs(currentStep: 3),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 const Text(
                   'Queremos te conhecer!',
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: darkTextColor),
@@ -200,9 +323,17 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                   validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
                 ),
                 const SizedBox(height: 24),
-                _buildDropdownField(),
+                _buildTextField(
+                  controller: _pronounController,
+                  label: 'Qual seu pronome? *',
+                  readOnly: true,
+                  onTap: _selectPronoun,
+                  suffixIcon: const Icon(Icons.arrow_drop_down, color: lightTextColor),
+                  validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+                ),
                 const SizedBox(height: 40),
                 _buildPrimaryButton('Finalizar cadastro', _submitFinalRegistration, _isLoading, false),
+                 const SizedBox(height: 20),
               ],
             ),
           ),
@@ -211,38 +342,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
-  Widget _buildBreadcrumbs({required int currentStep}) {
-    return Row(
-      children: [
-        _buildDot(isActive: currentStep >= 1),
-        _buildConnector(isActive: currentStep >= 2),
-        _buildDot(isActive: currentStep >= 2),
-        _buildConnector(isActive: currentStep >= 3),
-        _buildDot(isActive: currentStep >= 3),
-      ],
-    );
-  }
-
-  Widget _buildDot({required bool isActive}) {
-    return Container(
-      width: 12,
-      height: 12,
-      decoration: BoxDecoration(
-        color: isActive ? breadcrumbActiveColor : borderColor,
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-
-  Widget _buildConnector({required bool isActive}) {
-    return Expanded(
-      child: Container(
-        height: 2,
-        color: isActive ? breadcrumbActiveColor : borderColor,
-      ),
-    );
-  }
-  
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -253,38 +352,94 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     VoidCallback? onTap,
     Widget? suffixIcon,
   }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      inputFormatters: inputFormatters,
-      validator: validator,
-      readOnly: readOnly,
-      onTap: onTap,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          validator: validator,
+          readOnly: readOnly,
+          onTap: onTap,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: fieldBackgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            suffixIcon: suffixIcon,
+          ),
         ),
-        suffixIcon: suffixIcon,
-      ),
+      ],
+    );
+  }
+  
+  Widget _buildBreadcrumbs({required int currentStep}) {
+    return Row(
+      children: [
+        _buildStep(
+          icon: Icons.mark_email_read_outlined,
+          label: 'Verificação',
+          stepColor: verificationStepColor,
+          isComplete: currentStep > 1,
+          isActive: currentStep == 1,
+        ),
+        _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
+        _buildStep(
+          icon: Icons.lock_outline,
+          label: 'Senha',
+          stepColor: passwordStepColor,
+          isComplete: currentStep > 2,
+          isActive: currentStep == 2,
+        ),
+        _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
+        _buildStep(
+          icon: Icons.person_outline,
+          label: 'Dados',
+          stepColor: infoStepColor,
+          isComplete: false, 
+          isActive: currentStep == 3,
+        ),
+      ],
     );
   }
 
-  Widget _buildDropdownField() {
-    return DropdownButtonFormField<String>(
-      value: _selectedPronoun,
-      hint: const Text('Selecione', style: TextStyle(color: lightTextColor)),
-      decoration: InputDecoration(
-        labelText: 'Qual seu pronome? *',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+  Widget _buildStep({required IconData icon, required String label, required Color stepColor, required bool isActive, required bool isComplete}) {
+    final color = isActive || isComplete ? stepColor : Colors.grey[400];
+    
+    return Column(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isActive || isComplete ? stepColor : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(color: color!, width: 2),
+          ),
+          child: Icon(
+            icon,
+            color: isActive || isComplete ? Colors.white : Colors.grey[400],
+            size: 22,
+          ),
         ),
+        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: darkTextColor, fontSize: 12, fontWeight: isActive || isComplete ? FontWeight.bold : FontWeight.normal)),
+      ],
+    );
+  }
+
+  Widget _buildConnector({required bool isComplete, required Color color}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        color: isComplete ? color : Colors.grey[300],
       ),
-      items: _pronouns.map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(value: value, child: Text(value));
-      }).toList(),
-      onChanged: (String? newValue) => setState(() => _selectedPronoun = newValue),
-      validator: (value) => value == null ? 'Campo obrigatório' : null,
     );
   }
 }
