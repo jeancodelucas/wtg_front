@@ -1,11 +1,8 @@
-// lib/screens/additional_info_screen.dart
+// lib/screens/registration/additional_info_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:wtg_front/screens/registration_success_screen.dart';
-import 'package:wtg_front/services/api_service.dart';
-import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
@@ -75,6 +72,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
     if (picked != null) {
       setState(() {
+        // Mostra a data no formato amigável para o usuário
         _birthdayController.text = DateFormat('dd/MM/yyyy').format(picked);
       });
     }
@@ -85,6 +83,25 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
+      // --- CORREÇÃO APLICADA AQUI ---
+      // Converte a data do formato de exibição (dd/MM/yyyy) para o formato de envio (yyyy-MM-dd)
+      String birthdateToSend = '';
+      if (_birthdayController.text.isNotEmpty) {
+        try {
+          DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(_birthdayController.text);
+          birthdateToSend = DateFormat('yyyy-MM-dd').format(parsedDate);
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Formato de data inválido.')),
+            );
+            setState(() => _isLoading = false);
+            return;
+          }
+        }
+      }
+      // --- FIM DA CORREÇÃO ---
+
       final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
 
       try {
@@ -93,7 +110,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           final userUpdateData = {
             "firstName": _nicknameController.text,
             "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
-            "birthday": _birthdayController.text, // Formato "dd/MM/yyyy"
+            "birthday": birthdateToSend, // Envia a data no formato CORRETO
             "pronouns": _selectedPronoun,
           };
           final authToken = widget.registrationData['authToken'];
@@ -102,9 +119,9 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           // --- FLUXO DE CADASTRO NORMAL ---
           widget.registrationData['userName'] = widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
-          widget.registrationData['fullName'] = _nicknameController.text; // Pode ser ajustado
+          widget.registrationData['fullName'] = _nicknameController.text;
           widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
-          widget.registrationData['birthday'] = _birthdayController.text;
+          widget.registrationData['birthday'] = birthdateToSend; // Envia a data no formato CORRETO
           widget.registrationData['pronouns'] = _selectedPronoun;
           await _apiService.register(widget.registrationData);
         }
