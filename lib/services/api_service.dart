@@ -5,20 +5,24 @@ import 'dart:io' show Platform; // Import necessário para verificar a plataform
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  /// Função privada que determina a URL base correta para o backend.
-  /// Isto é crucial para o desenvolvimento em diferentes plataformas.
-  String _getBaseUrl() {
+  // --- CORREÇÃO APLICADA E VALIDADA ---
+  // Define a URL base dinamicamente para cada cenário de desenvolvimento.
+  final String _baseUrl = _getBaseUrl();
+
+  // Função auxiliar para determinar a URL correta
+  static String _getBaseUrl() {
     if (Platform.isAndroid) {
-      // O emulador Android usa este endereço especial para aceder ao 'localhost' da máquina anfitriã.
+      // O emulador Android usa 10.0.2.2 para se referir ao localhost da máquina host
       return 'http://10.0.2.2:8080/api';
     } else {
-      // O simulador iOS, Web, macOS e Windows podem usar 'localhost' diretamente.
-      return 'http://localhost:8080/api';
+      // Para simulador iOS, web, ou desktop rodando na mesma máquina que o servidor
+      // ATENÇÃO: Se for testar num dispositivo físico (iPhone ou Android),
+      // você DEVE substituir 'localhost' pelo IP da sua máquina na rede Wi-Fi.
+      // Ex: 'http://192.168.1.25:8080/api'
+      return 'http://192.168.1.42:8080/api';
     }
   }
 
-  // A _baseUrl agora é inicializada de forma segura usando a função acima.
-  late final String _baseUrl = _getBaseUrl();
 
   /// ETAPA 1 DO REGISTO: Envia o e-mail do utilizador para receber um token de verificação.
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
