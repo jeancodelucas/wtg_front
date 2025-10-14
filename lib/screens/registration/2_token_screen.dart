@@ -7,6 +7,9 @@ import 'package:wtg_front/services/api_service.dart';
 
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
+const Color borderColor = Color(0xFFD1D5DB);
+// --- MUDANÇA DE COR APLICADA ---
+const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class TokenScreen extends StatefulWidget {
   final String email;
@@ -48,7 +51,7 @@ class _TokenScreenState extends State<TokenScreen> {
     setState(() => _isLoading = true);
     try {
       await _apiService.initiateRegistration(widget.email);
-      startTimer(); // Reinicia o contador
+      startTimer();
     } catch (e) {
       // Tratar erro
     } finally {
@@ -112,6 +115,7 @@ class _TokenScreenState extends State<TokenScreen> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildBreadcrumbs(currentStep: 1),
                       const SizedBox(height: 24),
                       const Text('Digite o código de verificação',
                           style: TextStyle(
@@ -163,9 +167,9 @@ class _TokenScreenState extends State<TokenScreen> {
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12))),
                         child: _isLoading
-                            ? const CircularProgressIndicator()
+                            ? const CircularProgressIndicator(color: Colors.white)
                             : const Text('Continuar',
-                                style: TextStyle(color: Colors.white)),
+                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 16),
                       Center(
@@ -181,5 +185,37 @@ class _TokenScreenState extends State<TokenScreen> {
                         ),
                       )
                     ]))));
+  }
+  
+  Widget _buildBreadcrumbs({required int currentStep}) {
+    return Row(
+      children: [
+        _buildDot(isActive: currentStep >= 1),
+        _buildConnector(isActive: currentStep >= 2),
+        _buildDot(isActive: currentStep >= 2),
+        _buildConnector(isActive: currentStep >= 3),
+        _buildDot(isActive: currentStep >= 3),
+      ],
+    );
+  }
+
+  Widget _buildDot({required bool isActive}) {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: isActive ? breadcrumbActiveColor : borderColor,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  Widget _buildConnector({required bool isActive}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: isActive ? breadcrumbActiveColor : borderColor,
+      ),
+    );
   }
 }

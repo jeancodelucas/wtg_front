@@ -1,13 +1,18 @@
 // lib/screens/registration_success_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:wtg_front/screens/home_screen.dart'; // Import da HomeScreen
 
 // Asumindo que as cores primárias do seu app são estas
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
+const Color lightTextColor = Color(0xFF6B7280);
 
 class RegistrationSuccessScreen extends StatelessWidget {
-  const RegistrationSuccessScreen({super.key});
+  // --- MUDANÇA 1: Recebe os dados do usuário ---
+  final Map<String, dynamic> userData;
+
+  const RegistrationSuccessScreen({super.key, required this.userData});
 
   @override
   Widget build(BuildContext context) {
@@ -21,13 +26,11 @@ class RegistrationSuccessScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 2),
-              // Imagem de celebração
               Image.asset(
                 'assets/images/Celebration.png',
                 height: MediaQuery.of(context).size.height * 0.3,
               ),
               const SizedBox(height: 40),
-              // Textos
               const Text(
                 'Bora descobrir uns eventos?',
                 textAlign: TextAlign.center,
@@ -48,7 +51,6 @@ class RegistrationSuccessScreen extends StatelessWidget {
                 ),
               ),
               const Spacer(flex: 3),
-              // Botões
               _buildPrimaryButton(
                 text: 'Cadastrar evento',
                 onPressed: () {
@@ -59,8 +61,14 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildSecondaryButton(
                 text: 'Ir para a Home',
                 onPressed: () {
-                  // TODO: Adicionar navegação para a tela Home
-                  // Ex: Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (c) => HomeScreen()), (route) => false);
+                  // --- MUDANÇA 2: Implementação do botão ---
+                  // Navega para a HomeScreen e remove todas as telas anteriores da pilha
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => HomeScreen(loginResponse: userData),
+                    ),
+                    (route) => false,
+                  );
                 },
               ),
               const Spacer(flex: 1),
@@ -100,6 +108,3 @@ class RegistrationSuccessScreen extends StatelessWidget {
     );
   }
 }
-
-// Recriando a constante de cor que pode não estar neste escopo
-const Color lightTextColor = Color(0xFF6B7280);

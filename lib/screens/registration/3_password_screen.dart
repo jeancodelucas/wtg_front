@@ -5,6 +5,9 @@ import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
+const Color borderColor = Color(0xFFD1D5DB);
+// --- MUDANÇA DE COR APLICADA ---
+const Color breadcrumbActiveColor = Color(0xFFff4757);
 
 class PasswordScreen extends StatefulWidget {
   final String email;
@@ -28,6 +31,14 @@ class _PasswordScreenState extends State<PasswordScreen> {
     _passwordController.addListener(_validatePassword);
   }
 
+  @override
+  void dispose() {
+    _passwordController.removeListener(_validatePassword);
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
   void _validatePassword() {
     final pass = _passwordController.text;
     setState(() {
@@ -44,10 +55,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
           .showSnackBar(const SnackBar(content: Text('As senhas não coincidem.')));
       return;
     }
-    if (!(_has8Chars &&
-        _hasUppercase &&
-        _hasNumber &&
-        _hasSpecialChar)) {
+    if (!(_has8Chars && _hasUppercase && _hasNumber && _hasSpecialChar)) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('A senha não atende aos critérios.')));
       return;
@@ -81,6 +89,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildBreadcrumbs(currentStep: 2),
               const SizedBox(height: 24),
               const Text('Crie uma senha',
                   style: TextStyle(
@@ -132,14 +141,49 @@ class _PasswordScreenState extends State<PasswordScreen> {
     );
   }
 
-  Widget _buildRequirementRow(String text, bool met) {
+  Widget _buildBreadcrumbs({required int currentStep}) {
     return Row(
       children: [
-        Icon(Icons.check_circle,
-            color: met ? Colors.green : Colors.grey, size: 16),
-        const SizedBox(width: 8),
-        Text(text, style: TextStyle(color: met ? Colors.green : Colors.grey)),
+        _buildDot(isActive: currentStep >= 1),
+        _buildConnector(isActive: currentStep >= 2),
+        _buildDot(isActive: currentStep >= 2),
+        _buildConnector(isActive: currentStep >= 3),
+        _buildDot(isActive: currentStep >= 3),
       ],
+    );
+  }
+
+  Widget _buildDot({required bool isActive}) {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: isActive ? breadcrumbActiveColor : borderColor,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  Widget _buildConnector({required bool isActive}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: isActive ? breadcrumbActiveColor : borderColor,
+      ),
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool met) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Row(
+        children: [
+          Icon(met ? Icons.check_circle : Icons.circle_outlined,
+              color: met ? Colors.green : Colors.grey, size: 18),
+          const SizedBox(width: 8),
+          Text(text, style: TextStyle(color: met ? Colors.black : Colors.grey)),
+        ],
+      ),
     );
   }
 }

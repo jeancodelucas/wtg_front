@@ -6,12 +6,14 @@ import 'package:intl/intl.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// --- PALETA DE CORES ATUALIZADA ---
 const Color primaryColor = Color(0xFF214886);
 const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
 const Color borderColor = Color(0xFFD1D5DB);
+// --- MUDANÇA DE COR APLICADA ---
+const Color breadcrumbActiveColor = Color(0xFFff4757);
+
 
 class AdditionalInfoScreen extends StatefulWidget {
   final Map<String, dynamic> registrationData;
@@ -72,7 +74,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
     if (picked != null) {
       setState(() {
-        // Mostra a data no formato amigável para o usuário
         _birthdayController.text = DateFormat('dd/MM/yyyy').format(picked);
       });
     }
@@ -83,8 +84,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Converte a data do formato de exibição (dd/MM/yyyy) para o formato de envio (yyyy-MM-dd)
       String birthdateToSend = '';
       if (_birthdayController.text.isNotEmpty) {
         try {
@@ -100,35 +99,33 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           }
         }
       }
-      // --- FIM DA CORREÇÃO ---
 
       final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
+      Map<String, dynamic>? apiResponse;
 
       try {
         if (isSsoUser) {
-          // --- FLUXO DE ATUALIZAÇÃO PARA USUÁRIO SSO ---
           final userUpdateData = {
             "firstName": _nicknameController.text,
             "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
-            "birthday": birthdateToSend, // Envia a data no formato CORRETO
+            "birthday": birthdateToSend,
             "pronouns": _selectedPronoun,
           };
           final authToken = widget.registrationData['authToken'];
-          await _apiService.updateUser(userUpdateData, authToken);
+          apiResponse = await _apiService.updateUser(userUpdateData, authToken);
         } else {
-          // --- FLUXO DE CADASTRO NORMAL ---
           widget.registrationData['userName'] = widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
           widget.registrationData['fullName'] = _nicknameController.text;
           widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
-          widget.registrationData['birthday'] = birthdateToSend; // Envia a data no formato CORRETO
+          widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
-          await _apiService.register(widget.registrationData);
+          apiResponse = await _apiService.register(widget.registrationData);
         }
 
-        if (mounted) {
+        if (mounted && apiResponse != null) {
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => const RegistrationSuccessScreen()),
+            MaterialPageRoute(builder: (context) => RegistrationSuccessScreen(userData: apiResponse!)),
             (route) => false,
           );
         }
@@ -164,7 +161,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildBreadcrumbs(),
+                _buildBreadcrumbs(currentStep: 3),
                 const SizedBox(height: 24),
                 const Text(
                   'Queremos te conhecer!',
@@ -207,26 +204,34 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
-  Widget _buildBreadcrumbs() {
+  Widget _buildBreadcrumbs({required int currentStep}) {
     return Row(
       children: [
-        _buildBreadcrumbItem(isActive: true),
-        const SizedBox(width: 8),
-        _buildBreadcrumbItem(isActive: true),
-        const SizedBox(width: 8),
-        _buildBreadcrumbItem(isActive: true),
+        _buildDot(isActive: currentStep >= 1),
+        _buildConnector(isActive: currentStep >= 2),
+        _buildDot(isActive: currentStep >= 2),
+        _buildConnector(isActive: currentStep >= 3),
+        _buildDot(isActive: currentStep >= 3),
       ],
     );
   }
 
-  Widget _buildBreadcrumbItem({required bool isActive}) {
+  Widget _buildDot({required bool isActive}) {
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(
+        color: isActive ? breadcrumbActiveColor : borderColor,
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  Widget _buildConnector({required bool isActive}) {
     return Expanded(
       child: Container(
-        height: 4,
-        decoration: BoxDecoration(
-          color: isActive ? primaryColor : borderColor,
-          borderRadius: BorderRadius.circular(2),
-        ),
+        height: 2,
+        color: isActive ? breadcrumbActiveColor : borderColor,
       ),
     );
   }
@@ -241,50 +246,38 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     VoidCallback? onTap,
     Widget? suffixIcon,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          validator: validator,
-          readOnly: readOnly,
-          onTap: onTap,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: fieldBackgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            suffixIcon: suffixIcon,
-          ),
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      validator: validator,
+      readOnly: readOnly,
+      onTap: onTap,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
+        suffixIcon: suffixIcon,
+      ),
     );
   }
 
   Widget _buildDropdownField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Qual seu pronome? *', style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          value: _selectedPronoun,
-          hint: const Text('Selecione', style: TextStyle(color: lightTextColor)),
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: fieldBackgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          ),
-          items: _pronouns.map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(value: value, child: Text(value));
-          }).toList(),
-          onChanged: (String? newValue) => setState(() => _selectedPronoun = newValue),
-          validator: (value) => value == null ? 'Campo obrigatório' : null,
+    return DropdownButtonFormField<String>(
+      value: _selectedPronoun,
+      hint: const Text('Selecione', style: TextStyle(color: lightTextColor)),
+      decoration: InputDecoration(
+        labelText: 'Qual seu pronome? *',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
         ),
-      ],
+      ),
+      items: _pronouns.map<DropdownMenuItem<String>>((String value) {
+        return DropdownMenuItem<String>(value: value, child: Text(value));
+      }).toList(),
+      onChanged: (String? newValue) => setState(() => _selectedPronoun = newValue),
+      validator: (value) => value == null ? 'Campo obrigatório' : null,
     );
   }
 }
