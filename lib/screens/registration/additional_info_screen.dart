@@ -78,7 +78,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
-    Future<void> _submitFinalRegistration() async {
+  // --- CORREÇÃO APLICADA AQUI ---
+  Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
@@ -104,25 +105,27 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
       try {
         if (isSsoUser) {
+          // Para utilizadores SSO, montamos o payload para ATUALIZAR o perfil
           final userUpdateData = {
             "firstName": _nicknameController.text,
             "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
             "birthday": birthdateToSend,
             "pronouns": _selectedPronoun,
+            // Adiciona a geolocalização que veio da tela anterior
+            "latitude": widget.registrationData['latitude'],
+            "longitude": widget.registrationData['longitude'],
           };
           final authToken = widget.registrationData['authToken'];
           apiResponse = await _apiService.updateUser(userUpdateData, authToken);
         } else {
-          // CORREÇÃO: Adicionar latitude e longitude aos dados de registro
+          // Para registo normal, adicionamos os novos campos ao mapa existente
           widget.registrationData['userName'] = widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
           widget.registrationData['fullName'] = _nicknameController.text;
           widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
           widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
-          
-          // Latitude e longitude já estão em widget.registrationData desde a tela anterior
-          
+          // Latitude e longitude já estão em widget.registrationData
           apiResponse = await _apiService.register(widget.registrationData);
         }
 
@@ -143,6 +146,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
       }
     }
   }
+  // --- FIM DA CORREÇÃO ---
 
   @override
   Widget build(BuildContext context) {

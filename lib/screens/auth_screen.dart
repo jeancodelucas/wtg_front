@@ -157,6 +157,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
+        // O usuário cancelou o login
         setState(() => _isLoading = false);
         return;
       }
@@ -168,7 +169,13 @@ class _AuthScreenState extends State<AuthScreen> {
         throw Exception('Não foi possível obter o token do Google.');
       }
 
-      final position = _currentPosition;
+      // Garante que a posição mais recente seja usada antes de chamar a API
+      final position = await _locationService.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+        });
+      }
 
       // Envia o token e a localização para o seu backend
       final responseData = await _apiService.loginWithGoogle(
@@ -181,7 +188,7 @@ class _AuthScreenState extends State<AuthScreen> {
         final bool isNewUser = responseData['isNewUser'] ?? false;
 
         if (isNewUser) {
-          // Navega para a tela de informações adicionais, passando a localização
+          // Se for novo, navega para a tela de informações adicionais
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (context) => AdditionalInfoScreen(
@@ -189,6 +196,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ...responseData,
                   'isSsoUser': true,
                   'authToken': responseData['token'],
+                   // Passa a localização para o próximo passo do cadastro
                   'latitude': position?.latitude,
                   'longitude': position?.longitude,
                 },
@@ -196,7 +204,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           );
         } else {
-          // Navega para a tela principal
+          // Se for um usuário existente, navega para a tela principal
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomeScreen(
