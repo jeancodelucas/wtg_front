@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration/3_password_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-const Color primaryColor = Color(0xFF214886);
-const Color darkTextColor = Color(0xFF1F2937);
+// --- CORES ATUALIZADAS ---
+const Color primaryButtonColor = Color(0xFFd74533);
+const Color messageTextColor = Color(0xFFec9724);
+const Color darkTextColor = Color(0xFF002956);
 const Color borderColor = Color(0xFFD1D5DB);
 
-// --- CORES DO BREADCRUMB ADICIONADAS ---
-const Color verificationStepColor = Color(0xFFFF554D);
+// --- CORES DO BREADCRUMB ---
+const Color verificationStepColor = Color(0xFF214886);
 const Color passwordStepColor = Color(0xFF10ac84);
 const Color infoStepColor = Color(0xFF1F73F8);
 
@@ -155,10 +157,26 @@ class _TokenScreenState extends State<TokenScreen> {
                               fontWeight: FontWeight.bold,
                               color: darkTextColor)),
                       const SizedBox(height: 8),
-                      Text(
-                          'Um código de verificação foi enviado para o e-mail ${widget.email}',
+                      // --- WIDGET DE TEXTO ATUALIZADO ---
+                      RichText(
+                        text: TextSpan(
                           style: const TextStyle(
-                              fontSize: 16, color: Colors.grey)),
+                            fontSize: 12,
+                            color: messageTextColor, // Cor do texto
+                          ),
+                          children: [
+                            const TextSpan(
+                                text:
+                                    'Um novo código de verificação foi enviado para o e-mail '),
+                            TextSpan(
+                              text: widget.email,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold, // Negrito
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 40),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -201,15 +219,18 @@ class _TokenScreenState extends State<TokenScreen> {
                       const SizedBox(height: 24),
                       Center(child: Text(timerText)),
                       const SizedBox(height: 16),
+                      // --- BOTÃO ATUALIZADO ---
                       ElevatedButton(
                         onPressed: _isLoading ? null : _validateToken,
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
+                            backgroundColor:
+                                primaryButtonColor, // Cor do botão
                             minimumSize: const Size(double.infinity, 50),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12))),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text('Continuar',
                                 style: TextStyle(
                                     color: Colors.white,
@@ -224,7 +245,7 @@ class _TokenScreenState extends State<TokenScreen> {
                             'Reenviar código',
                             style: TextStyle(
                                 color: _timerSeconds == 0
-                                    ? primaryColor
+                                    ? primaryButtonColor
                                     : Colors.grey),
                           ),
                         ),

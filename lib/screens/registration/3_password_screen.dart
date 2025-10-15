@@ -4,12 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 
 const Color primaryColor = Color(0xFF214886);
-const Color darkTextColor = Color(0xFF1F2937);
+const Color darkTextColor = Color(0xFF002956);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
+const Color primaryButtonColor = Color(0xFFd74533);
 
 // --- CORES DO BREADCRUMB ADICIONADAS ---
-const Color verificationStepColor = Color(0xFFFF554D);
-const Color passwordStepColor = Color(0xFF10ac84);
+const Color verificationStepColor = Color(0xFF214886);
+const Color passwordStepColor = Color(0xFFec9b28);
 const Color infoStepColor = Color(0xFF1F73F8);
 
 class PasswordScreen extends StatefulWidget {
@@ -114,7 +115,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
                       color: darkTextColor)),
               const SizedBox(height: 8),
               const Text('Não esqueça: a senha tem que ser forte!',
-                  style: TextStyle(fontSize: 16, color: Colors.grey)),
+                  style: TextStyle(fontSize: 16, color: Color.fromRGBO(238, 155, 42, 0.933))),
               const SizedBox(height: 40),
               
               const Text('Senha', style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
@@ -174,7 +175,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
               ElevatedButton(
                 onPressed: _continue,
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
+                    backgroundColor: primaryButtonColor,
                     minimumSize: const Size(double.infinity, 50),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12))),

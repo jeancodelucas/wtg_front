@@ -8,15 +8,16 @@ import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'dart:io' show Platform;
 
+const Color primaryButtonColor = Color(0xFFd74533);
 const Color primaryColor = Color(0xFF214886);
-const Color lightTextColor = Color(0xFF6B7280);
-const Color darkTextColor = Color(0xFF1F2937);
+const Color lightTextColor = Color(0xFF002956);
+const Color darkTextColor = Color(0xFF002956);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
 
 // --- CORES DO BREADCRUMB ADICIONADAS ---
-const Color verificationStepColor = Color(0xFFFF554D);
-const Color passwordStepColor = Color(0xFF10ac84);
-const Color infoStepColor = Color(0xFF1F73F8);
+const Color verificationStepColor = Color(0xFF214886);
+const Color passwordStepColor = Color(0xFFec9b28);
+const Color infoStepColor = Color(0xFFd74533);
 
 class AdditionalInfoScreen extends StatefulWidget {
   final Map<String, dynamic> registrationData;
@@ -298,7 +299,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: darkTextColor),
                 ),
                 const SizedBox(height: 8),
-                const Text('Conta um pouco mais sobre tu', style: TextStyle(fontSize: 16, color: lightTextColor)),
+                const Text('Conta um pouco mais sobre tu', style: TextStyle(fontSize: 16, color: passwordStepColor)),
                 const SizedBox(height: 40),
                 _buildTextField(
                   controller: _nicknameController,
@@ -448,7 +449,7 @@ Widget _buildPrimaryButton(String text, VoidCallback onPressed, bool isLoading, 
   return ElevatedButton(
     onPressed: isLoading ? null : onPressed,
     style: ElevatedButton.styleFrom(
-      backgroundColor: primaryColor,
+      backgroundColor: primaryButtonColor,
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 16),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
