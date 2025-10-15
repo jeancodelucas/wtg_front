@@ -1,5 +1,6 @@
 // lib/screens/auth_screen.dart
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/reset_password/reset_token_screen.dart';
 import 'package:wtg_front/screens/registration/2_token_screen.dart';
@@ -10,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:wtg_front/screens/home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:wtg_front/screens/registration/additional_info_screen.dart';
+import 'dart:io' show Platform;
 
 // --- PALETA DE CORES ---
 const Color primaryColor = Color(0xFF214886);
@@ -161,7 +163,8 @@ class _AuthScreenState extends State<AuthScreen> {
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
@@ -212,7 +215,8 @@ class _AuthScreenState extends State<AuthScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+          SnackBar(
+              content: Text('Erro ao fazer login com Google: ${e.toString()}')),
         );
       }
     } finally {
@@ -222,87 +226,183 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // --- CORREÇÃO APLICADA AQUI ---
+  // --- MÉTODO REESCRITO COM NOVO DESIGN E TAMANHO AJUSTADO ---
   Future<void> _forgotPassword() async {
-    final emailForResetController = TextEditingController(text: _emailController.text);
+    final emailForResetController =
+        TextEditingController(text: _emailController.text);
     
-    showDialog(
-      context: context,
-      builder: (context) {
-        bool isSending = false;
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-              title: const Text('Recuperar Senha'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Digite seu e-mail para receber um código de recuperação.'),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: emailForResetController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      hintText: "Digite seu e-mail",
-                      prefixIcon: Icon(Icons.email_outlined),
+    Future<void> sendRequest(
+        void Function(void Function()) setDialogState) async {
+      if (emailForResetController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Por favor, preencha o e-mail.')),
+        );
+        return;
+      }
+      
+      setDialogState(() => _isLoading = true);
+
+      try {
+        await _apiService.forgotPassword(emailForResetController.text);
+        if (!mounted) return;
+
+        Navigator.of(context).pop();
+
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: (context) =>
+              ResetTokenScreen(email: emailForResetController.text),
+        ));
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Código de recuperação enviado para seu e-mail!')),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
+        );
+      } finally {
+        if (mounted) {
+          _isLoading = false;
+          setDialogState(() {});
+        }
+      }
+    }
+
+    // Conteúdo comum para ambos os popups
+    Widget buildContent(Widget emailField) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: primaryColor.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.vpn_key_outlined,
+                color: primaryColor, size: 32),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Redefinir senha',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: darkTextColor),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Digite seu e-mail para receber o código de recuperação.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 15, color: lightTextColor),
+          ),
+          const SizedBox(height: 24),
+          emailField,
+        ],
+      );
+    }
+
+    if (Platform.isIOS) {
+      showCupertinoDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return CupertinoAlertDialog(
+                content: Material( // Envolve com Material para evitar problemas de tema
+                  color: Colors.transparent,
+                  child: buildContent(
+                    CupertinoTextField(
+                      controller: emailForResetController,
+                      placeholder: 'email@example.com',
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.extraLightBackgroundGray,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
+                ),
+                actions: [
+                  CupertinoDialogAction(
+                    child:
+                        const Text('Cancelar', style: TextStyle(color: primaryColor)),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  CupertinoDialogAction(
+                    isDefaultAction: true,
+                    onPressed:
+                        _isLoading ? null : () => sendRequest(setDialogState),
+                    child: _isLoading
+                        ? const CupertinoActivityIndicator()
+                        : const Text('Enviar',
+                            style: TextStyle(
+                                color: primaryColor,
+                                fontWeight: FontWeight.bold)),
+                  ),
                 ],
-              ),
-              actions: [
-                TextButton(
-                  child: const Text('Cancelar'),
-                  onPressed: () => Navigator.of(context).pop(),
+              );
+            },
+          );
+        },
+      );
+    } else {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28)),
+                content: SizedBox( // Garante largura e altura suficientes
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  child: buildContent(
+                    TextField(
+                      controller: emailForResetController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: "E-mail",
+                        prefixIcon: Icon(Icons.email_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
                 ),
-                ElevatedButton(
-                  onPressed: isSending ? null : () async {
-                    if (emailForResetController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Por favor, preencha o e-mail.')),
-                      );
-                      return;
-                    }
-                    
-                    setDialogState(() => isSending = true);
-
-                    try {
-                      await _apiService.forgotPassword(emailForResetController.text);
-                      if (!mounted) return;
-
-                      Navigator.of(context).pop();
-                      
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => ResetTokenScreen(email: emailForResetController.text),
-                      ));
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Código de recuperação enviado para seu e-mail!')),
-                      );
-                    } catch (e) {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
-                      );
-                    } finally {
-                       if (mounted) {
-                          setDialogState(() => isSending = false);
-                       }
-                    }
-                  },
-                  child: isSending 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Enviar'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+                actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                actions: [
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: primaryColor),
+                    child: const Text('Cancelar'),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primaryColor,
+                    ),
+                    onPressed:
+                        _isLoading ? null : () => sendRequest(setDialogState),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('Enviar'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+    }
   }
-  // --- FIM DA CORREÇÃO ---
-
 
   @override
   void dispose() {
@@ -331,7 +431,10 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 40),
                   _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 32),
-                  const Text('Digite seu e-mail', style: TextStyle(color: darkTextColor, fontWeight: FontWeight.w500)),
+                  const Text('Digite seu e-mail',
+                      style: TextStyle(
+                          color: darkTextColor,
+                          fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
@@ -343,9 +446,14 @@ class _AuthScreenState extends State<AuthScreen> {
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide.none)),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Por favor, insira um e-mail.';
-                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                      if (!emailRegex.hasMatch(value)) return 'Por favor, insira um e-mail válido.';
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, insira um e-mail.';
+                      }
+                      final emailRegex =
+                          RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      if (!emailRegex.hasMatch(value)) {
+                        return 'Por favor, insira um e-mail válido.';
+                      }
                       return null;
                     },
                   ),
@@ -355,7 +463,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 300),
                       opacity: _showLogin ? 1.0 : 0.0,
-                      child: _showLogin ? _buildLoginFields() : const SizedBox.shrink(),
+                      child: _showLogin
+                          ? _buildLoginFields()
+                          : const SizedBox.shrink(),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -378,7 +488,9 @@ class _AuthScreenState extends State<AuthScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-        const Text('Senha', style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
+        const Text('Senha',
+            style:
+                TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _passwordController,
@@ -386,10 +498,17 @@ class _AuthScreenState extends State<AuthScreen> {
           decoration: InputDecoration(
               filled: true,
               fillColor: fieldBackgroundColor,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none),
               suffixIcon: IconButton(
-                  icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: lightTextColor),
-                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
+                  icon: Icon(
+                      _isPasswordVisible
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: lightTextColor),
+                  onPressed: () =>
+                      setState(() => _isPasswordVisible = !_isPasswordVisible))),
           validator: (value) {
             if (_showLogin && (value == null || value.isEmpty)) {
               return 'Por favor, insira sua senha.';
@@ -414,12 +533,14 @@ class _AuthScreenState extends State<AuthScreen> {
               height: 24,
               child: Checkbox(
                 value: _rememberMe,
-                onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                onChanged: (value) =>
+                    setState(() => _rememberMe = value ?? false),
                 activeColor: primaryColor,
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Mantenha-me conectado', style: TextStyle(color: darkTextColor)),
+            const Text('Mantenha-me conectado',
+                style: TextStyle(color: darkTextColor)),
           ],
         ),
         TextButton(
@@ -445,16 +566,25 @@ class _AuthScreenState extends State<AuthScreen> {
         elevation: 0,
       ),
       child: _isLoading
-          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                  color: Colors.white, strokeWidth: 3))
           : AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _showLogin
-                  ? const Text('Entrar', key: ValueKey('login_text'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+                  ? const Text('Entrar',
+                      key: ValueKey('login_text'),
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
                   : const Row(
                       key: ValueKey('register_row'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Continuar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text('Continuar',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
                         SizedBox(width: 8),
                         Icon(Icons.arrow_forward),
                       ],
@@ -553,7 +683,9 @@ Widget _buildSocialLoginRow(VoidCallback onGoogleTap) {
       const SizedBox(width: 16),
       Expanded(
         child: OutlinedButton.icon(
-          onPressed: () { /* TODO: Apple Login */ },
+          onPressed: () {
+            /* TODO: Apple Login */
+          },
           icon: const Icon(Icons.apple, color: Colors.black, size: 28),
           label: const Text(''),
           style: OutlinedButton.styleFrom(
