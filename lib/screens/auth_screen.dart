@@ -231,178 +231,148 @@ class _AuthScreenState extends State<AuthScreen> {
     final emailForResetController =
         TextEditingController(text: _emailController.text);
     
-    Future<void> sendRequest(
-        void Function(void Function()) setDialogState) async {
-      if (emailForResetController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Por favor, preencha o e-mail.')),
-        );
-        return;
-      }
-      
-      setDialogState(() => _isLoading = true);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> sendRequest() async {
+              if (emailForResetController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Por favor, preencha o e-mail.')),
+                );
+                return;
+              }
+              
+              setDialogState(() => _isLoading = true);
 
-      try {
-        await _apiService.forgotPassword(emailForResetController.text);
-        if (!mounted) return;
+              try {
+                await _apiService.forgotPassword(emailForResetController.text);
+                if (!mounted) return;
 
-        Navigator.of(context).pop();
+                Navigator.of(context).pop();
 
-        Navigator.of(context).push(MaterialPageRoute(
-          builder: (context) =>
-              ResetTokenScreen(email: emailForResetController.text),
-        ));
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) =>
+                      ResetTokenScreen(email: emailForResetController.text),
+                ));
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Código de recuperação enviado para seu e-mail!')),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content:
-                  Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
-        );
-      } finally {
-        if (mounted) {
-          _isLoading = false;
-          setDialogState(() {});
-        }
-      }
-    }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text('Código de recuperação enviado para seu e-mail!')),
+                );
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Erro: ${e.toString().replaceAll("Exception: ", "")}')),
+                );
+              } finally {
+                if (mounted) {
+                  _isLoading = false;
+                  setDialogState(() {});
+                }
+              }
+            }
 
-    // Conteúdo comum para ambos os popups
-    Widget buildContent(Widget emailField) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: primaryColor.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.vpn_key_outlined,
-                color: primaryColor, size: 32),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Redefinir senha',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-                fontSize: 20, fontWeight: FontWeight.bold, color: darkTextColor),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Digite seu e-mail para receber o código de recuperação.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 15, color: lightTextColor),
-          ),
-          const SizedBox(height: 24),
-          emailField,
-        ],
-      );
-    }
-
-    if (Platform.isIOS) {
-      showCupertinoDialog(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return CupertinoAlertDialog(
-                content: Material( // Envolve com Material para evitar problemas de tema
-                  color: Colors.transparent,
-                  child: buildContent(
-                    CupertinoTextField(
-                      controller: emailForResetController,
-                      placeholder: 'email@example.com',
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: BoxDecoration(
-                        color: CupertinoColors.extraLightBackgroundGray,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
+              // O conteúdo agora é uma Column diretamente para um layout mais simples
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Ícone de chave
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: primaryColor.withOpacity(0.1),
+                      shape: BoxShape.circle,
                     ),
+                    child: const Icon(Icons.vpn_key_outlined,
+                        color: primaryColor, size: 32),
                   ),
-                ),
-                actions: [
-                  CupertinoDialogAction(
-                    child:
-                        const Text('Cancelar', style: TextStyle(color: primaryColor)),
-                    onPressed: () => Navigator.of(context).pop(),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Redefinir senha',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: darkTextColor),
                   ),
-                  CupertinoDialogAction(
-                    isDefaultAction: true,
-                    onPressed:
-                        _isLoading ? null : () => sendRequest(setDialogState),
-                    child: _isLoading
-                        ? const CupertinoActivityIndicator()
-                        : const Text('Enviar',
-                            style: TextStyle(
-                                color: primaryColor,
-                                fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Digite seu e-mail para receber o código de recuperação.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, color: lightTextColor),
+                  ),
+                  const SizedBox(height: 24),
+                  // Campo de texto para o e-mail
+                  TextField(
+                    controller: emailForResetController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      hintText: "email@example.com", // Placeholder atualizado
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => sendRequest(),
                   ),
                 ],
-              );
-            },
-          );
-        },
-      );
-    } else {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              return AlertDialog(
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28)),
-                content: SizedBox( // Garante largura e altura suficientes
-                  width: MediaQuery.of(context).size.width * 0.9,
-                  child: buildContent(
-                    TextField(
-                      controller: emailForResetController,
-                      keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
-                        labelText: "E-mail",
-                        prefixIcon: Icon(Icons.email_outlined),
-                        border: OutlineInputBorder(),
+              ),
+              // Botões na parte inferior do Dialog
+              actionsAlignment: MainAxisAlignment.center,
+              actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              actions: [
+                // Usar Row com Expanded para os botões ocuparem o espaço igualmente
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        style: TextButton.styleFrom(
+                          foregroundColor: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Text('Cancelar'),
+                        onPressed: () => Navigator.of(context).pop(),
                       ),
                     ),
-                  ),
-                ),
-                actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                actions: [
-                  TextButton(
-                    style: TextButton.styleFrom(foregroundColor: primaryColor),
-                    child: const Text('Cancelar'),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: primaryColor,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: _isLoading ? null : sendRequest,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white))
+                            : const Text('Enviar'),
+                      ),
                     ),
-                    onPressed:
-                        _isLoading ? null : () => sendRequest(setDialogState),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Enviar'),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-    }
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
+
 
   @override
   void dispose() {
