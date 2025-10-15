@@ -67,9 +67,16 @@ class _EmailScreenState extends State<EmailScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.asset('assets/images/LaRuaLogo.png', height: 140),
-                  const SizedBox(height: 16),
-                  Image.asset('assets/images/LaRuaNameLogo.png', height: 40),
+                  // --- ALTERAÇÕES AQUI ---
+                  // Agrupando o mascote e o nome para melhor controle de proporção
+                  Column(
+                    children: [
+                      Image.asset('assets/images/LaRuaLogo.png', height: 150),
+                      const SizedBox(height: 8), // Espaçamento menor entre eles
+                      Image.asset('assets/images/LaRuaNameLogo.png', height: 60,fit: BoxFit.contain), // Nome bem maior
+                    ],
+                  ),
+                  // --- FIM DAS ALTERAÇÕES ---
                   const SizedBox(height: 40),
                   _buildToggler(),
                   const SizedBox(height: 32),

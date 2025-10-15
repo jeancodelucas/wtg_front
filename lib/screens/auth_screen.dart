@@ -1,6 +1,5 @@
 // lib/screens/auth_screen.dart
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/reset_password/reset_token_screen.dart';
 import 'package:wtg_front/screens/registration/2_token_screen.dart';
@@ -11,7 +10,6 @@ import 'package:geolocator/geolocator.dart';
 import 'package:wtg_front/screens/home_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:wtg_front/screens/registration/additional_info_screen.dart';
-import 'dart:io' show Platform;
 
 // --- PALETA DE CORES ATUALIZADA ---
 const Color loginTabActiveColor = Color(0xFFF6A61F);
@@ -98,14 +96,32 @@ class _AuthScreenState extends State<AuthScreen> {
         longitude: position?.longitude,
       );
       if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(
-              initialPosition: position,
-              loginResponse: responseData,
+        // CORREÇÃO: Verifica se o cadastro está completo
+        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
+
+        if (isRegistrationComplete) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                initialPosition: position,
+                loginResponse: responseData,
+              ),
             ),
-          ),
-        );
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  ...responseData,
+                  'isSsoUser': false, // Não é um usuário de SSO
+                  'latitude': position?.latitude,
+                  'longitude': position?.longitude,
+                },
+              ),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -163,12 +179,11 @@ class _AuthScreenState extends State<AuthScreen> {
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
       if (googleUser == null) {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
         return;
       }
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
 
       if (idToken == null) {
@@ -189,23 +204,10 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       if (mounted) {
-        final bool isNewUser = responseData['isNewUser'] ?? false;
+        // CORREÇÃO: Verifica se o cadastro do usuário SSO está completo
+        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
 
-        if (isNewUser) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => AdditionalInfoScreen(
-                registrationData: {
-                  ...responseData,
-                  'isSsoUser': true,
-                  'authToken': responseData['token'],
-                  'latitude': position?.latitude,
-                  'longitude': position?.longitude,
-                },
-              ),
-            ),
-          );
-        } else {
+        if (isRegistrationComplete) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (context) => HomeScreen(
@@ -214,13 +216,25 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ),
           );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  ...responseData,
+                  'isSsoUser': true, // É um usuário SSO
+                  'latitude': position?.latitude,
+                  'longitude': position?.longitude,
+                },
+              ),
+            ),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
         );
       }
     } finally {
@@ -231,9 +245,8 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _forgotPassword() async {
-    final emailForResetController =
-        TextEditingController(text: _emailController.text);
-    
+    final emailForResetController = TextEditingController(text: _emailController.text);
+
     showDialog(
       context: context,
       builder: (context) {
@@ -246,7 +259,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 );
                 return;
               }
-              
+
               setDialogState(() => _isLoading = true);
 
               try {
@@ -256,20 +269,16 @@ class _AuthScreenState extends State<AuthScreen> {
                 Navigator.of(context).pop();
 
                 Navigator.of(context).push(MaterialPageRoute(
-                  builder: (context) =>
-                      ResetTokenScreen(email: emailForResetController.text),
+                  builder: (context) => ResetTokenScreen(email: emailForResetController.text),
                 ));
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Código de recuperação enviado para seu e-mail!')),
+                  const SnackBar(content: Text('Código de recuperação enviado para seu e-mail!')),
                 );
               } catch (e) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Erro: ${e.toString().replaceAll("Exception: ", "")}')),
+                  SnackBar(content: Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')),
                 );
               } finally {
                 if (mounted) {
@@ -282,8 +291,7 @@ class _AuthScreenState extends State<AuthScreen> {
             return AlertDialog(
               backgroundColor: Colors.white,
               surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -293,17 +301,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       color: loginTabActiveColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.vpn_key_outlined,
-                        color: loginTabActiveColor, size: 32),
+                    child: const Icon(Icons.vpn_key_outlined, color: loginTabActiveColor, size: 32),
                   ),
                   const SizedBox(height: 16),
                   const Text(
                     'Redefinir senha',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: darkTextColor),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: darkTextColor),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -356,8 +360,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white))
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Text('Enviar', style: TextStyle(color: Colors.white)),
                       ),
                     ),
@@ -393,10 +396,9 @@ class _AuthScreenState extends State<AuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Image.asset('assets/images/Novalogo.png', height: 140),
-                  // --- AJUSTE DE ESPAÇAMENTO E TAMANHO DO NOME ---
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 45,
+                    height: 60, // <<<<----- AQUI A CORREÇÃO
                     child: Image.asset(
                       'assets/images/LaRuaNameLogo.png',
                       fit: BoxFit.contain,
@@ -406,9 +408,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 32),
                   const Text('Digite seu e-mail',
-                      style: TextStyle(
-                          color: labelColor,
-                          fontWeight: FontWeight.w500)),
+                      style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _emailController,
@@ -417,14 +417,12 @@ class _AuthScreenState extends State<AuthScreen> {
                         filled: true,
                         fillColor: fieldBackgroundColor,
                         border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide.none)),
+                            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Por favor, insira um e-mail.';
                       }
-                      final emailRegex =
-                          RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                      final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                       if (!emailRegex.hasMatch(value)) {
                         return 'Por favor, insira um e-mail válido.';
                       }
@@ -437,9 +435,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: AnimatedOpacity(
                       duration: const Duration(milliseconds: 300),
                       opacity: _showLogin ? 1.0 : 0.0,
-                      child: _showLogin
-                          ? _buildLoginFields()
-                          : const SizedBox.shrink(),
+                      child: _showLogin ? _buildLoginFields() : const SizedBox.shrink(),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -462,9 +458,7 @@ class _AuthScreenState extends State<AuthScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-        const Text('Senha',
-            style:
-                TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
+        const Text('Senha', style: TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _passwordController,
@@ -473,16 +467,11 @@ class _AuthScreenState extends State<AuthScreen> {
               filled: true,
               fillColor: fieldBackgroundColor,
               border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none),
+                  borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               suffixIcon: IconButton(
-                  icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_off_outlined
-                          : Icons.visibility_outlined,
+                  icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                       color: lightTextColor),
-                  onPressed: () =>
-                      setState(() => _isPasswordVisible = !_isPasswordVisible))),
+                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
           validator: (value) {
             if (_showLogin && (value == null || value.isEmpty)) {
               return 'Por favor, insira sua senha.';
@@ -507,14 +496,12 @@ class _AuthScreenState extends State<AuthScreen> {
               height: 24,
               child: Checkbox(
                 value: _rememberMe,
-                onChanged: (value) =>
-                    setState(() => _rememberMe = value ?? false),
+                onChanged: (value) => setState(() => _rememberMe = value ?? false),
                 activeColor: loginTabActiveColor,
               ),
             ),
             const SizedBox(width: 8),
-            const Text('Mantenha-me conectado',
-                style: TextStyle(color: darkTextColor)),
+            const Text('Mantenha-me conectado', style: TextStyle(color: darkTextColor)),
           ],
         ),
         TextButton(
@@ -546,22 +533,20 @@ class _AuthScreenState extends State<AuthScreen> {
           ? const SizedBox(
               height: 24,
               width: 24,
-              child: CircularProgressIndicator(
-                  color: Colors.white, strokeWidth: 3))
+              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
           : AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _showLogin
                   ? Text('Entrar',
                       key: const ValueKey('login_text'),
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor))
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor))
                   : Row(
                       key: const ValueKey('register_row'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text('Continuar',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                            style:
+                                TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
                         const SizedBox(width: 8),
                         Icon(Icons.arrow_forward, color: textColor),
                       ],
@@ -595,7 +580,7 @@ class _AuthToggler extends StatelessWidget {
 
   Widget _buildToggleButton(String title, bool isSelected, VoidCallback onTap) {
     final Color activeColor = title == 'Entrar' ? loginTabActiveColor : registerTabActiveColor;
-    
+
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -606,13 +591,15 @@ class _AuthToggler extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected ? activeColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: isSelected ? [
-              BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  spreadRadius: 1,
-                  blurRadius: 4,
-                  offset: const Offset(0, 1))
-            ] : [],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                        color: Colors.grey.withOpacity(0.2),
+                        spreadRadius: 1,
+                        blurRadius: 4,
+                        offset: const Offset(0, 1))
+                  ]
+                : [],
           ),
           child: Center(
             child: Text(
@@ -652,8 +639,7 @@ Widget _buildSocialLoginRow(VoidCallback onGoogleTap) {
           label: const Text(''),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             side: const BorderSide(color: borderColor),
           ),
         ),
@@ -668,8 +654,7 @@ Widget _buildSocialLoginRow(VoidCallback onGoogleTap) {
           label: const Text(''),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             side: const BorderSide(color: borderColor),
           ),
         ),

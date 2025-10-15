@@ -15,7 +15,6 @@ class ApiService {
     }
   }
 
-
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de início de registo para: $uri');
@@ -33,11 +32,13 @@ class ApiService {
       if (response.statusCode == 200) {
         return responseBody;
       } else {
-        throw Exception(responseBody['message'] ?? 'Falha ao iniciar o registo.');
+        throw Exception(
+            responseBody['message'] ?? 'Falha ao iniciar o registo.');
       }
     } on http.ClientException catch (e) {
       print('Erro de cliente ao iniciar registo: ${e.message}');
-      throw Exception('Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
+      throw Exception(
+          'Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
     }
   }
 
@@ -57,14 +58,16 @@ class ApiService {
     if (response.statusCode == 200) {
       return responseBody;
     } else {
-      throw Exception(responseBody['message'] ?? 'Falha na validação do token.');
+      throw Exception(
+          responseBody['message'] ?? 'Falha na validação do token.');
     }
   }
 
-  Future<Map<String, dynamic>> register(Map<String, dynamic> registrationData) async {
+  Future<Map<String, dynamic>> register(
+      Map<String, dynamic> registrationData) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de registo final para: $uri');
-    print('Payload do registo: ${jsonEncode(registrationData)}'); // Log para depuração
+    print('Payload do registo: ${jsonEncode(registrationData)}');
 
     final response = await http.post(
       uri,
@@ -73,12 +76,13 @@ class ApiService {
     );
 
     print('Resposta do registo final: ${response.statusCode}');
-    
+
     if (response.statusCode == 201) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      String errorMessage = errorBody['message'] ?? 'Ocorreu um erro durante o cadastro.';
+      String errorMessage =
+          errorBody['message'] ?? 'Ocorreu um erro durante o cadastro.';
       throw Exception(errorMessage);
     }
   }
@@ -114,8 +118,8 @@ class ApiService {
     }
   }
 
-  // --- CORREÇÃO APLICADA AQUI ---
-  Future<Map<String, dynamic>> loginWithGoogle(String token, {double? latitude, double? longitude}) async {
+  Future<Map<String, dynamic>> loginWithGoogle(String token,
+      {double? latitude, double? longitude}) async {
     final uri = Uri.parse('$_baseUrl/auth/google');
     print('Enviando requisição de login SSO para: $uri');
 
@@ -133,19 +137,24 @@ class ApiService {
       );
 
       print('Resposta do login SSO: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
-        return jsonDecode(utf8.decode(response.bodyBytes));
+        final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+        String? rawCookie = response.headers['set-cookie'];
+        if (rawCookie != null) {
+          responseData['cookie'] = rawCookie;
+        }
+        return responseData;
       } else {
         final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
         throw Exception(errorBody['error'] ?? 'Falha no login com Google');
       }
     } on http.ClientException catch (e) {
       print('Erro de cliente no login SSO: ${e.message}');
-      throw Exception('Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
+      throw Exception(
+          'Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
     }
   }
-  // --- FIM DA CORREÇÃO ---
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     final uri = Uri.parse('$_baseUrl/auth/forgot-password');
@@ -163,11 +172,12 @@ class ApiService {
     if (response.statusCode == 200) {
       return responseBody;
     } else {
-      throw Exception(responseBody['message'] ?? 'Falha ao solicitar recuperação de senha.');
+      throw Exception(
+          responseBody['message'] ?? 'Falha ao solicitar recuperação de senha.');
     }
   }
 
-    Future<Map<String, dynamic>> resetPassword({
+  Future<Map<String, dynamic>> resetPassword({
     required String token,
     required String newPassword,
   }) async {
@@ -189,16 +199,18 @@ class ApiService {
     if (response.statusCode == 200) {
       return responseBody;
     } else {
-      throw Exception(responseBody['message'] ?? 'Falha ao redefinir a senha.');
+      throw Exception(
+          responseBody['message'] ?? 'Falha ao redefinir a senha.');
     }
   }
 
-  Future<Map<String, dynamic>> updateUser(Map<String, dynamic> userData, String authToken) async {
+  Future<Map<String, dynamic>> updateUser(
+      Map<String, dynamic> userData, String cookie) async {
     final response = await http.put(
       Uri.parse('$_baseUrl/users/update'),
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $authToken',
+        'Cookie': cookie,
       },
       body: jsonEncode(userData),
     );
@@ -216,7 +228,8 @@ class ApiService {
     required double longitude,
     double radius = 5.0,
   }) async {
-    final uri = Uri.parse('$_baseUrl/promotions/filter').replace(queryParameters: {
+    final uri =
+        Uri.parse('$_baseUrl/promotions/filter').replace(queryParameters: {
       'latitude': latitude.toString(),
       'longitude': longitude.toString(),
       'radius': radius.toString(),

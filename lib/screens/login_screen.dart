@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// import 'package:flutter_svg/flutter_svg.dart'; // REMOVIDO
 import 'package:http/http.dart' as http;
 import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:wtg_front/screens/registration_screen.dart';
@@ -36,9 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final responseData = await _apiService.login(
-      email: _emailController.text,
-      password: _passwordController.text,
-  );
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(
@@ -144,15 +143,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   height: 140,
                   width: 140,
-                  // MODIFICADO DE SvgPicture.asset PARA Image.asset
                   child: Image.asset('assets/images/LaRuaLogo.png'),
                 ),
                 const SizedBox(height: 16),
                 // Nome do App
                 SizedBox(
-                  height: 40,
-                  // MODIFICADO DE SvgPicture.asset PARA Image.asset
-                  child: Image.asset('assets/images/LaRuaNameLogo.png'),
+                  height: 60, // Aumentado para 60 para um nome maior
+                  // Removendo a largura para que a imagem se ajuste mantendo a proporção
+                  child: Image.asset(
+                    'assets/images/LaRuaNameLogo.png',
+                    fit: BoxFit.contain, // Garante que a imagem se ajuste sem distorcer
+                  ),
                 ),
                 const SizedBox(height: 40),
                 // Botões de Acesso (Toggler)
@@ -190,9 +191,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  // O restante do código permanece o mesmo...
-  // ... (Cole o resto dos métodos _buildLoginToggler, _buildTextField, etc. aqui)
 
   Widget _buildLoginToggler() {
     return Container(
