@@ -37,6 +37,7 @@ flutter:
   
   # Declaração atualizada para os arquivos PNG
   assets:
+    - assets/images/Novalogo.png
     - assets/images/LaRuaLogo.png
     - assets/images/LaRuaNameLogo.png
     - assets/images/google_logo.png

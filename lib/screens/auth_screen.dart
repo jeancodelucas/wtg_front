@@ -13,8 +13,12 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 import 'dart:io' show Platform;
 
-// --- PALETA DE CORES ---
-const Color primaryColor = Color(0xFF214886);
+// --- PALETA DE CORES ATUALIZADA ---
+const Color loginTabActiveColor = Color(0xFFF6A61F);
+const Color registerTabActiveColor = Color(0xFFec9827); // Cor da aba Cadastre-se
+const Color primaryButtonColor = Color(0xFFdb4939);
+const Color labelColor = Color(0xFF002c58); // Nova cor para as labels
+
 const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color backgroundColor = Colors.white;
@@ -226,7 +230,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // --- MÉTODO REESCRITO COM NOVO DESIGN E TAMANHO AJUSTADO ---
   Future<void> _forgotPassword() async {
     final emailForResetController =
         TextEditingController(text: _emailController.text);
@@ -281,19 +284,17 @@ class _AuthScreenState extends State<AuthScreen> {
               surfaceTintColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16)),
-              // O conteúdo agora é uma Column diretamente para um layout mais simples
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Ícone de chave
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: primaryColor.withOpacity(0.1),
+                      color: loginTabActiveColor.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.vpn_key_outlined,
-                        color: primaryColor, size: 32),
+                        color: loginTabActiveColor, size: 32),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -311,29 +312,26 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: TextStyle(fontSize: 15, color: lightTextColor),
                   ),
                   const SizedBox(height: 24),
-                  // Campo de texto para o e-mail
                   TextField(
                     controller: emailForResetController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
-                      hintText: "email@example.com", // Placeholder atualizado
+                      hintText: "email@example.com",
                       border: OutlineInputBorder(),
                     ),
                     onSubmitted: (_) => sendRequest(),
                   ),
                 ],
               ),
-              // Botões na parte inferior do Dialog
               actionsAlignment: MainAxisAlignment.center,
               actionsPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               actions: [
-                // Usar Row com Expanded para os botões ocuparem o espaço igualmente
                 Row(
                   children: [
                     Expanded(
                       child: TextButton(
                         style: TextButton.styleFrom(
-                          foregroundColor: primaryColor,
+                          foregroundColor: darkTextColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -347,7 +345,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     Expanded(
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: primaryColor,
+                          backgroundColor: primaryButtonColor,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -360,7 +358,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 height: 20,
                                 child: CircularProgressIndicator(
                                     strokeWidth: 2, color: Colors.white))
-                            : const Text('Enviar'),
+                            : const Text('Enviar', style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
@@ -372,7 +370,6 @@ class _AuthScreenState extends State<AuthScreen> {
       },
     );
   }
-
 
   @override
   void dispose() {
@@ -395,7 +392,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Image.asset('assets/images/LaRuaLogo.png', height: 140),
+                  Image.asset('assets/images/Novalogo.png', height: 140),
                   const SizedBox(height: 16),
                   Image.asset('assets/images/LaRuaNameLogo.png', height: 40),
                   const SizedBox(height: 40),
@@ -403,7 +400,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 32),
                   const Text('Digite seu e-mail',
                       style: TextStyle(
-                          color: darkTextColor,
+                          color: labelColor,
                           fontWeight: FontWeight.w500)),
                   const SizedBox(height: 8),
                   TextFormField(
@@ -460,7 +457,7 @@ class _AuthScreenState extends State<AuthScreen> {
         const SizedBox(height: 16),
         const Text('Senha',
             style:
-                TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
+                TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
         const SizedBox(height: 8),
         TextFormField(
           controller: _passwordController,
@@ -505,7 +502,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 value: _rememberMe,
                 onChanged: (value) =>
                     setState(() => _rememberMe = value ?? false),
-                activeColor: primaryColor,
+                activeColor: loginTabActiveColor,
               ),
             ),
             const SizedBox(width: 8),
@@ -517,7 +514,7 @@ class _AuthScreenState extends State<AuthScreen> {
           onPressed: _forgotPassword,
           child: const Text(
             'Esqueci a senha',
-            style: TextStyle(fontWeight: FontWeight.bold, color: primaryColor),
+            style: TextStyle(fontWeight: FontWeight.bold, color: loginTabActiveColor),
           ),
         ),
       ],
@@ -525,11 +522,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildPrimaryButton() {
+    const Color buttonColor = primaryButtonColor;
+    const Color textColor = Colors.white;
+
     return ElevatedButton(
       onPressed: _isLoading ? null : _handlePrimaryAction,
       style: ElevatedButton.styleFrom(
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        backgroundColor: buttonColor,
+        foregroundColor: textColor,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         minimumSize: const Size(double.infinity, 50),
@@ -544,19 +544,19 @@ class _AuthScreenState extends State<AuthScreen> {
           : AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _showLogin
-                  ? const Text('Entrar',
-                      key: ValueKey('login_text'),
+                  ? Text('Entrar',
+                      key: const ValueKey('login_text'),
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
-                  : const Row(
-                      key: ValueKey('register_row'),
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor))
+                  : Row(
+                      key: const ValueKey('register_row'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text('Continuar',
                             style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
-                        SizedBox(width: 8),
-                        Icon(Icons.arrow_forward),
+                                fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, color: textColor),
                       ],
                     ),
             ),
@@ -587,25 +587,26 @@ class _AuthToggler extends StatelessWidget {
   }
 
   Widget _buildToggleButton(String title, bool isSelected, VoidCallback onTap) {
+    final Color activeColor = title == 'Entrar' ? loginTabActiveColor : registerTabActiveColor;
+    
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         behavior: HitTestBehavior.opaque,
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: isSelected
-              ? BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                        color: Colors.grey.withOpacity(0.2),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                        offset: const Offset(0, 1))
-                  ],
-                )
-              : null,
+          decoration: BoxDecoration(
+            color: isSelected ? activeColor : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isSelected ? [
+              BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  spreadRadius: 1,
+                  blurRadius: 4,
+                  offset: const Offset(0, 1))
+            ] : [],
+          ),
           child: Center(
             child: Text(
               title,
