@@ -393,8 +393,15 @@ class _AuthScreenState extends State<AuthScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Image.asset('assets/images/Novalogo.png', height: 140),
-                  const SizedBox(height: 16),
-                  Image.asset('assets/images/LaRuaNameLogo.png', height: 40),
+                  // --- AJUSTE DE ESPAÇAMENTO E TAMANHO DO NOME ---
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 45,
+                    child: Image.asset(
+                      'assets/images/LaRuaNameLogo.png',
+                      fit: BoxFit.contain,
+                    ),
+                  ),
                   const SizedBox(height: 40),
                   _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 32),
