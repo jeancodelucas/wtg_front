@@ -18,6 +18,28 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> completePromotionRegistration(String promotionId, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/complete');
+    print('Finalizando cadastro da promoção: $uri');
+
+    final response = await http.patch( // Usando PATCH
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+    );
+
+    print('Resposta da finalização: ${response.statusCode}');
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 200) {
+      return responseBody;
+    } else {
+      throw Exception(responseBody['message'] ?? 'Falha ao finalizar o cadastro do evento.');
+    }
+  }
+
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions');

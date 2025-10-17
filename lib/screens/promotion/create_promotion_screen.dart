@@ -3,12 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'map_confirmation_screen.dart';
-import 'package:geocoding/geocoding.dart';
 
-// Estilos consistentes com o restante do app
+// Estilos
 const Color primaryButtonColor = Color(0xFFd74533);
 const Color darkTextColor = Color(0xFF002956);
 const Color fieldBackgroundColor = Color(0xFFF9FAFB);
@@ -24,8 +24,9 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
   bool _isLoading = false;
-  
-  // Controladores para todos os campos do formulário
+  bool _isGeocodingLoading = false;
+
+  // Controladores para todos os campos
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _obsController = TextEditingController();
@@ -35,18 +36,19 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
   final _referenceController = TextEditingController();
   final _postalCodeController = TextEditingController();
   final _addressObsController = TextEditingController();
-  final _cityController = TextEditingController(); // Restaurado
-  final _ufController = TextEditingController();   // Restaurado
+  final _cityController = TextEditingController();
+  final _ufController = TextEditingController();
 
-  // Estado da tela
+  // Variáveis de estado
   final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
   Map<String, double>? _confirmedCoordinates;
   PromotionType? _selectedPromotionType;
-  bool _isFree = false; 
+  bool _isFree = false;
 
   @override
   void dispose() {
+    // Limpeza de todos os controllers
     _titleController.dispose();
     _descriptionController.dispose();
     _obsController.dispose();
@@ -63,9 +65,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Você já selecionou o máximo de 6 imagens.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Você já selecionou o máximo de 6 imagens.')));
       return;
     }
     final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 80);
@@ -85,6 +85,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
       _selectedImages.removeAt(index);
     });
   }
+  
   Future<void> _geocodeAddressAndShowMap() async {
     FocusScope.of(context).unfocus();
     if (_addressController.text.isEmpty || _numberController.text.isEmpty || _postalCodeController.text.isEmpty) {
@@ -92,7 +93,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
         return;
     }
     
-    setState(() => _isLoading = true);
+    setState(() => _isGeocodingLoading = true);
 
     try {
         final String fullAddress = '${_addressController.text}, ${_numberController.text} - ${_postalCodeController.text}, ${_cityController.text}';
@@ -127,41 +128,34 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao buscar endereço: ${e.toString().replaceAll("Exception: ", "")}')));
         }
     } finally {
-        if (mounted) setState(() => _isLoading = false);
+        if (mounted) setState(() => _isGeocodingLoading = false);
     }
   }
 
-  // --- FUNÇÃO CORRIGIDA PARA ENVIAR DADOS À API ---
   Future<void> _submitPromotion() async {
-    if (!_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, preencha os campos obrigatórios.')));
-      return;
-    }
-    if (_selectedImages.isEmpty) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Adicione pelo menos uma imagem.')));
-        return;
-    }
-     if (_confirmedCoordinates == null) {
-         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Confirme a localização no mapa.')));
+    if (!_formKey.currentState!.validate() || _confirmedCoordinates == null || _selectedImages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, preencha todos os campos, adicione imagens e confirme a localização.')));
         return;
     }
 
     setState(() => _isLoading = true);
     
+    String? cookie;
+    String? newPromotionId;
+
     try {
-        // 1. Obter o cookie de autenticação
+        // ETAPA 1: Obter o cookie de autenticação
         final prefs = await SharedPreferences.getInstance();
-        final String? cookie = prefs.getString('session_cookie');
+        cookie = prefs.getString('session_cookie');
         if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
 
-        // 2. Montar o payload
+        // ETAPA 2: Montar o payload (flag 'free' é controlada pelo backend agora)
         final promotionData = {
             "title": _titleController.text,
             "description": _descriptionController.text,
             "obs": _obsController.text,
             "promotionType": _selectedPromotionType!.name.toUpperCase(),
             "active": true,
-            "free": _isFree,
             "address": {
                 "address": _addressController.text,
                 "number": int.tryParse(_numberController.text) ?? 0,
@@ -174,16 +168,18 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
             "longitude": _confirmedCoordinates!['longitude'],
         };
         
-        // 3. Criar a promoção (primeira chamada à API)
-        final response = await _apiService.createPromotion(promotionData, cookie);
+        // ETAPA 3: Criar a promoção (retorna a promoção com ID)
+        final createResponse = await _apiService.createPromotion(promotionData, cookie);
+        newPromotionId = createResponse['id']?.toString();
+        if (newPromotionId == null) throw Exception('Não foi possível obter o ID da promoção criada.');
         
-        // 4. Extrair o ID da promoção da forma CORRETA
-        final newPromotionId = response['promotions'][0]['id'].toString();
-        
-        // 5. Fazer o upload das imagens
+        // ETAPA 4: Fazer o upload das imagens
         if (_selectedImages.isNotEmpty) {
           await _apiService.uploadPromotionImages(newPromotionId, _selectedImages, cookie);
         }
+        
+        // ETAPA 5: Finalizar o cadastro (atualizar a flag 'free' para true)
+        await _apiService.completePromotionRegistration(newPromotionId, cookie);
 
         if (mounted) {
              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
@@ -200,7 +196,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // A UI permanece a mesma que você forneceu
     return Scaffold(
       appBar: AppBar(
         title: const Text('Cadastre seu Rolê', style: TextStyle(color: darkTextColor)),
@@ -220,6 +215,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
               const SizedBox(height: 16),
               _buildTextField(controller: _titleController, label: 'Nome do Rolê *'),
               const SizedBox(height: 16),
+              
               Text('Qual o tipo desse rolê? *', style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor)),
               const SizedBox(height: 8),
               DropdownButtonFormField<PromotionType>(
@@ -240,16 +236,20 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
                 ),
                 validator: (value) => value == null ? 'Campo obrigatório' : null,
               ),
+
               const SizedBox(height: 16),
               _buildTextField(controller: _descriptionController, label: 'Descrição do rolê *', maxLines: 3),
               const SizedBox(height: 16),
               _buildTextField(controller: _obsController, label: 'Alguma observação?', maxLines: 2),
               const SizedBox(height: 24),
+
               const Text("Endereço do Rolê", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkTextColor)),
               const Divider(),
               const SizedBox(height: 16),
+
               _buildTextField(controller: _addressController, label: 'Logradouro *'),
               const SizedBox(height: 16),
+
               Row(
                 children: [
                   Expanded(child: _buildTextField(controller: _numberController, label: 'Nº *', keyboardType: TextInputType.number)),
@@ -272,6 +272,7 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
               const SizedBox(height: 16),
               _buildTextField(controller: _addressObsController, label: 'Observações sobre o endereço?', maxLines: 2),
               const SizedBox(height: 24),
+              
               if (_confirmedCoordinates != null)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 16.0),
@@ -286,14 +287,15 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
                 )
               else 
                 OutlinedButton.icon(
-                  icon: _isLoading ? const SizedBox.shrink() : const Icon(Icons.map_outlined),
-                  label: _isLoading ? const CircularProgressIndicator() : const Text('Buscar e confirmar no mapa'),
-                  onPressed: _isLoading ? null : _geocodeAddressAndShowMap,
+                  icon: _isGeocodingLoading ? const SizedBox.shrink() : const Icon(Icons.map_outlined),
+                  label: _isGeocodingLoading ? const CircularProgressIndicator() : const Text('Buscar e confirmar no mapa'),
+                  onPressed: _isGeocodingLoading || _isLoading ? null : _geocodeAddressAndShowMap,
                   style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 ),
+                
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _isLoading ? null : _submitPromotion,
+                onPressed: _isLoading || _isGeocodingLoading ? null : _submitPromotion,
                 style: ElevatedButton.styleFrom(backgroundColor: primaryButtonColor, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Salvar Rolê', style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
@@ -304,7 +306,6 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
     );
   }
 
-  // Seus métodos de build da UI permanecem os mesmos
    Widget _buildImageGrid() {
     return GridView.builder(
       shrinkWrap: true,
@@ -376,29 +377,5 @@ class _CreatePromotionScreenState extends State<CreatePromotionScreen> {
         ),
       ],
     );
-  }
-////////////////////////////////////////////////////////////////////
-  Future<void> _confirmLocationOnMap() async {
-    FocusScope.of(context).unfocus();
-    
-    // Abre a tela do mapa para o usuário selecionar as coordenadas
-    final finalCoords = await Navigator.of(context).push<Map<String, double>>(
-        MaterialPageRoute(
-            builder: (context) => const MapConfirmationScreen(
-                // Você pode passar coordenadas iniciais se quiser, ex: do GPS do usuário
-                initialLatitude: -8.057838, // Marco Zero, Recife
-                initialLongitude: -34.870639,
-            ),
-        ),
-    );
-
-    if (finalCoords != null) {
-        setState(() {
-            _confirmedCoordinates = finalCoords;
-        });
-         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Localização confirmada!'))
-        );
-    }
   }
 }
