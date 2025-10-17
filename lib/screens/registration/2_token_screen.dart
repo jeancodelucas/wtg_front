@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration/3_password_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// Cores
+// --- CORES ---
 const Color primaryButtonColor = Color(0xFFd74533);
 const Color messageTextColor = Color(0xFFec9724);
 const Color darkTextColor = Color(0xFF002956);
-const Color borderColor = Color(0xFFD1D5DB);
+const Color placeholderColor = Color(0xFFE0E0E0); // Cor da borda padrão
 
 // Cores do Breadcrumb
 const Color verificationStepColor = Color(0xFF214886);
@@ -40,26 +40,20 @@ class _TokenScreenState extends State<TokenScreen> {
   int _timerSeconds = 90;
   Timer? _timer;
 
-  final List<Color> _borderColors = const [
-    Color(0xFFee5253),
-    Color(0xFF2e86de),
-    Color(0xFFff9f43),
-    Color(0xFF341f97),
-  ];
-
   @override
   void initState() {
     super.initState();
     startTimer();
     for (var node in _focusNodes) {
       node.addListener(() {
-        setState(() {});
+        setState(() {}); // Redesenha para atualizar a cor da borda ao focar
       });
     }
   }
 
   void startTimer() {
     _timerSeconds = 90;
+    _timer?.cancel(); // Cancela timer anterior se existir
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_timerSeconds > 0) {
         setState(() => _timerSeconds--);
@@ -75,6 +69,7 @@ class _TokenScreenState extends State<TokenScreen> {
     try {
       await _apiService.initiateRegistration(widget.email);
       startTimer();
+       if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Novo código enviado!')));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -144,7 +139,6 @@ class _TokenScreenState extends State<TokenScreen> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // --- BREADCRUMB ATUALIZADO ---
                       _buildBreadcrumbs(),
                       const SizedBox(height: 32),
                       const Text('Digite o código de verificação',
@@ -155,10 +149,7 @@ class _TokenScreenState extends State<TokenScreen> {
                       const SizedBox(height: 8),
                       RichText(
                         text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: messageTextColor,
-                          ),
+                          style: const TextStyle(fontSize: 12, color: messageTextColor),
                           children: [
                             const TextSpan(text: 'Um novo código de verificação foi enviado para o e-mail '),
                             TextSpan(
@@ -169,12 +160,10 @@ class _TokenScreenState extends State<TokenScreen> {
                         ),
                       ),
                       const SizedBox(height: 40),
+                      // --- INPUTS COM NOVO ESTILO ---
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(4, (index) {
-                          final bool isFocused = _focusNodes[index].hasFocus;
-                          final Color focusedColor = _borderColors[index];
-
                           return SizedBox(
                             width: 60,
                             height: 60,
@@ -184,14 +173,22 @@ class _TokenScreenState extends State<TokenScreen> {
                               textAlign: TextAlign.center,
                               keyboardType: TextInputType.number,
                               maxLength: 1,
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                               decoration: InputDecoration(
                                 counterText: '',
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: placeholderColor),
+                                ),
                                 enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                    borderSide: const BorderSide(color: borderColor)),
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(color: placeholderColor),
+                                ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(color: focusedColor, width: 2.0),
+                                  borderSide: const BorderSide(color: verificationStepColor, width: 2),
                                 ),
                               ),
                               onChanged: (value) {
@@ -239,42 +236,21 @@ class _TokenScreenState extends State<TokenScreen> {
                     ]))));
   }
   
-  // --- NOVOS WIDGETS PARA O BREADCRUMB ---
-
+  // O breadcrumb permanece o mesmo
   Widget _buildBreadcrumbs() {
     const int currentStep = 1;
     return Row(
       children: [
-        _buildStepIndicator(
-          step: 1,
-          currentStep: currentStep,
-          icon: Icons.mark_email_read_outlined,
-          activeColor: verificationStepColor,
-        ),
+        _buildStepIndicator(step: 1, currentStep: currentStep, icon: Icons.mark_email_read_outlined, activeColor: verificationStepColor),
         _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
-        _buildStepIndicator(
-          step: 2,
-          currentStep: currentStep,
-          icon: Icons.lock_outline,
-          activeColor: passwordStepColor,
-        ),
+        _buildStepIndicator(step: 2, currentStep: currentStep, icon: Icons.lock_outline, activeColor: passwordStepColor),
         _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
-        _buildStepIndicator(
-          step: 3,
-          currentStep: currentStep,
-          icon: Icons.person_outline,
-          activeColor: infoStepColor,
-        ),
+        _buildStepIndicator(step: 3, currentStep: currentStep, icon: Icons.person_outline, activeColor: infoStepColor),
       ],
     );
   }
 
-  Widget _buildStepIndicator({
-    required int step,
-    required int currentStep,
-    required IconData icon,
-    required Color activeColor,
-  }) {
+  Widget _buildStepIndicator({required int step, required int currentStep, required IconData icon, required Color activeColor}) {
     final bool isActive = step == currentStep;
     final bool isComplete = step < currentStep;
     final Color color = isActive || isComplete ? activeColor : Colors.grey[400]!;
@@ -283,13 +259,7 @@ class _TokenScreenState extends State<TokenScreen> {
       children: [
         Icon(icon, color: color, size: 28),
         const SizedBox(height: 8),
-        Text(
-          step.toString(),
-          style: TextStyle(
-            color: color,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-          ),
-        ),
+        Text(step.toString(), style: TextStyle(color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
       ],
     );
   }
