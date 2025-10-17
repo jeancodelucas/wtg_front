@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:wtg_front/models/promotion_type.dart';
+import 'create_promotion_step2_screen.dart';
 
 // --- Paleta de Cores Baseada no seu Design ---
 const Color primaryAppColor = Color(0xFFec9724); // Roxo principal do design
@@ -76,6 +77,9 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'isFree': _isFree,
         'images': _selectedImages,
       };
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => CreatePromotionStep2Screen(promotionData: promotionData),
+      ));
 
       // TODO: Navegar para a próxima tela (Step 2: Localização)
       // Navigator.of(context).push(MaterialPageRoute(

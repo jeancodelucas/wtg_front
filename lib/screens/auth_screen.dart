@@ -1,5 +1,3 @@
-// lib/screens/auth_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/screens/reset_password/reset_token_screen.dart';
@@ -14,16 +12,19 @@ import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 
 // --- PALETA DE CORES ATUALIZADA ---
 const Color loginTabActiveColor = Color(0xFFF6A61F);
-const Color registerTabActiveColor = Color(0xFFec9827); // Cor da aba Cadastre-se
+const Color registerTabActiveColor = Color(0xFFec9827);
 const Color primaryButtonColor = Color(0xFFdb4939);
-const Color labelColor = Color(0xFF002c58); // Nova cor para as labels
+const Color labelColor = Color(0xFF002c58);
 
 const Color lightTextColor = Color(0xFF6B7280);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color backgroundColor = Colors.white;
-const Color fieldBackgroundColor = Color(0xFFF9FAFB);
 const Color togglerBackgroundColor = Color(0xFFE5E7EB);
-const Color borderColor = Color(0xFFD1D5DB);
+
+// --- NOVAS CORES PARA OS INPUTS ---
+const Color inputFocusColor = Color(0xFF1E3799); // Cor solicitada
+const Color placeholderColor = Color(0xFFE0E0E0); // Cor da borda padrão
+
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -61,11 +62,31 @@ class _AuthScreenState extends State<AuthScreen> {
       });
     }
   }
-
+  
   Future<void> _saveSessionCookie(String? cookie) async {
     if (cookie == null) return;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('session_cookie', cookie);
+  }
+
+  void _toggleForm(bool showLogin) {
+    if (_showLogin != showLogin) {
+      _formKey.currentState?.reset();
+      _emailController.clear();
+      _passwordController.clear();
+      FocusScope.of(context).unfocus();
+      setState(() {
+        _showLogin = showLogin;
+      });
+    }
+  }
+
+  Future<void> _handlePrimaryAction() async {
+    if (_showLogin) {
+      _performLogin();
+    } else {
+      _initiateRegistration();
+    }
   }
 
   Future<void> _performLogin() async {
@@ -82,12 +103,12 @@ class _AuthScreenState extends State<AuthScreen> {
         latitude: position?.latitude,
         longitude: position?.longitude,
       );
-
-      // --- CORREÇÃO DEFINITIVA: SALVAR O COOKIE ---
+      
       await _saveSessionCookie(responseData['cookie']);
 
       if (mounted) {
         final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
+
         if (isRegistrationComplete) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -103,7 +124,7 @@ class _AuthScreenState extends State<AuthScreen> {
               builder: (context) => AdditionalInfoScreen(
                 registrationData: {
                   ...responseData,
-                  'isSsoUser': false,
+                  'isSsoUser': false, 
                 },
               ),
             ),
@@ -124,89 +145,6 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-      if (idToken == null) throw Exception('Não foi possível obter o token do Google.');
-
-      final position = await _locationService.getCurrentPosition();
-      if (mounted) setState(() { _currentPosition = position; });
-
-      final responseData = await _apiService.loginWithGoogle(
-        idToken,
-        latitude: position?.latitude,
-        longitude: position?.longitude,
-      );
-
-      // --- CORREÇÃO DEFINITIVA: SALVAR O COOKIE ---
-      await _saveSessionCookie(responseData['cookie']);
-
-      if (mounted) {
-        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
-        if (isRegistrationComplete) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
-                initialPosition: _currentPosition,
-                loginResponse: responseData,
-              ),
-            ),
-          );
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => AdditionalInfoScreen(
-                registrationData: {
-                  ...responseData,
-                  'isSsoUser': true,
-                },
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-  /////////////////////////////////////////////////////////////////////////
-
-  void _toggleForm(bool showLogin) {
-    if (_showLogin != showLogin) {
-      _formKey.currentState?.reset();
-      _emailController.clear();
-      _passwordController.clear();
-      FocusScope.of(context).unfocus();
-      setState(() {
-        _showLogin = showLogin;
-      });
-    }
-  }
-
-  Future<void> _handlePrimaryAction() async {
-    if (_showLogin) {
-      _performLogin();
-    } else {
-      _initiateRegistration();
     }
   }
 
@@ -240,6 +178,76 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        throw Exception('Não foi possível obter o token do Google.');
+      }
+
+      final position = await _locationService.getCurrentPosition();
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+        });
+      }
+
+      final responseData = await _apiService.loginWithGoogle(
+        idToken,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+      
+      await _saveSessionCookie(responseData['cookie']);
+
+      if (mounted) {
+        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
+
+        if (isRegistrationComplete) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                initialPosition: _currentPosition,
+                loginResponse: responseData,
+              ),
+            ),
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  ...responseData,
+                  'isSsoUser': true,
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -335,9 +343,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: TextButton(
                         style: TextButton.styleFrom(
                           foregroundColor: darkTextColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: const Text('Cancelar'),
@@ -349,16 +355,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       child: FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: primaryButtonColor,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         onPressed: _isLoading ? null : sendRequest,
                         child: _isLoading
                             ? const SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: 20, height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : const Text('Enviar', style: TextStyle(color: Colors.white)),
                       ),
@@ -397,7 +400,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   Image.asset('assets/images/Novalogo.png', height: 140),
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 60, // <<<<----- AQUI A CORREÇÃO
+                    height: 60,
                     child: Image.asset(
                       'assets/images/LaRuaNameLogo.png',
                       fit: BoxFit.contain,
@@ -406,28 +409,20 @@ class _AuthScreenState extends State<AuthScreen> {
                   const SizedBox(height: 40),
                   _AuthToggler(isLogin: _showLogin, onToggle: _toggleForm),
                   const SizedBox(height: 32),
-                  const Text('Digite seu e-mail',
-                      style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  TextFormField(
+                  
+                  // --- INPUTS ATUALIZADOS ---
+                  _buildTextField(
+                    label: 'Digite seu e-mail',
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                        filled: true,
-                        fillColor: fieldBackgroundColor,
-                        border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Por favor, insira um e-mail.';
-                      }
+                      if (value == null || value.isEmpty) return 'Por favor, insira um e-mail.';
                       final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-                      if (!emailRegex.hasMatch(value)) {
-                        return 'Por favor, insira um e-mail válido.';
-                      }
+                      if (!emailRegex.hasMatch(value)) return 'Por favor, insira um e-mail válido.';
                       return null;
                     },
                   ),
+                  
                   AnimatedSize(
                     duration: const Duration(milliseconds: 300),
                     curve: Curves.easeInOut,
@@ -452,31 +447,64 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
+  // --- NOVO WIDGET PADRONIZADO DE INPUT ---
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    bool isObscured = false,
+    Widget? suffixIcon,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: labelColor, fontSize: 16)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          obscureText: isObscured,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: placeholderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: placeholderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: inputFocusColor, width: 2),
+            ),
+            suffixIcon: suffixIcon,
+          ),
+        ),
+      ],
+    );
+  }
+  
   Widget _buildLoginFields() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 16),
-        const Text('Senha', style: TextStyle(fontWeight: FontWeight.bold, color: labelColor)),
-        const SizedBox(height: 8),
-        TextFormField(
+        _buildTextField(
+          label: 'Senha',
           controller: _passwordController,
-          obscureText: !_isPasswordVisible,
-          decoration: InputDecoration(
-              filled: true,
-              fillColor: fieldBackgroundColor,
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              suffixIcon: IconButton(
-                  icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                      color: lightTextColor),
-                  onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible))),
+          isObscured: !_isPasswordVisible,
           validator: (value) {
-            if (_showLogin && (value == null || value.isEmpty)) {
-              return 'Por favor, insira sua senha.';
-            }
+            if (_showLogin && (value == null || value.isEmpty)) return 'Por favor, insira sua senha.';
             return null;
           },
+          suffixIcon: IconButton(
+            icon: Icon(_isPasswordVisible ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: lightTextColor),
+            onPressed: () => setState(() => _isPasswordVisible = !_isPasswordVisible)
+          ),
         ),
         const SizedBox(height: 16),
         _buildOptionsRow(),
@@ -505,49 +533,36 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
         TextButton(
           onPressed: _forgotPassword,
-          child: const Text(
-            'Esqueci a senha',
-            style: TextStyle(fontWeight: FontWeight.bold, color: loginTabActiveColor),
-          ),
+          child: const Text('Esqueci a senha', style: TextStyle(fontWeight: FontWeight.bold, color: loginTabActiveColor)),
         ),
       ],
     );
   }
 
   Widget _buildPrimaryButton() {
-    const Color buttonColor = primaryButtonColor;
-    const Color textColor = Colors.white;
-
     return ElevatedButton(
       onPressed: _isLoading ? null : _handlePrimaryAction,
       style: ElevatedButton.styleFrom(
-        backgroundColor: buttonColor,
-        foregroundColor: textColor,
+        backgroundColor: primaryButtonColor,
+        foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         minimumSize: const Size(double.infinity, 50),
         elevation: 0,
       ),
       child: _isLoading
-          ? const SizedBox(
-              height: 24,
-              width: 24,
-              child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+          ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
           : AnimatedSwitcher(
               duration: const Duration(milliseconds: 300),
               child: _showLogin
-                  ? Text('Entrar',
-                      key: const ValueKey('login_text'),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor))
-                  : Row(
-                      key: const ValueKey('register_row'),
+                  ? const Text('Entrar', key: ValueKey('login_text'), style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))
+                  : const Row(
+                      key: ValueKey('register_row'),
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Continuar',
-                            style:
-                                TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: textColor)),
-                        const SizedBox(width: 8),
-                        Icon(Icons.arrow_forward, color: textColor),
+                        Text('Continuar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        SizedBox(width: 8),
+                        Icon(Icons.arrow_forward),
                       ],
                     ),
             ),
@@ -618,12 +633,12 @@ class _AuthToggler extends StatelessWidget {
 Widget _buildDivider() {
   return Row(
     children: [
-      Expanded(child: Divider(color: borderColor)),
+      Expanded(child: Divider(color: placeholderColor)),
       const Padding(
         padding: EdgeInsets.symmetric(horizontal: 16.0),
         child: Text('Ou', style: TextStyle(color: lightTextColor)),
       ),
-      Expanded(child: Divider(color: borderColor)),
+      Expanded(child: Divider(color: placeholderColor)),
     ],
   );
 }
@@ -639,7 +654,7 @@ Widget _buildSocialLoginRow(VoidCallback onGoogleTap) {
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            side: const BorderSide(color: borderColor),
+            side: const BorderSide(color: placeholderColor),
           ),
         ),
       ),
@@ -654,7 +669,7 @@ Widget _buildSocialLoginRow(VoidCallback onGoogleTap) {
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            side: const BorderSide(color: borderColor),
+            side: const BorderSide(color: placeholderColor),
           ),
         ),
       ),
