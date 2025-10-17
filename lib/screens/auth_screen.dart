@@ -1,6 +1,7 @@
 // lib/screens/auth_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/screens/reset_password/reset_token_screen.dart';
 import 'package:wtg_front/screens/registration/2_token_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
@@ -61,24 +62,10 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  void _toggleForm(bool showLogin) {
-    if (_showLogin != showLogin) {
-      _formKey.currentState?.reset();
-      _emailController.clear();
-      _passwordController.clear();
-      FocusScope.of(context).unfocus();
-      setState(() {
-        _showLogin = showLogin;
-      });
-    }
-  }
-
-  Future<void> _handlePrimaryAction() async {
-    if (_showLogin) {
-      _performLogin();
-    } else {
-      _initiateRegistration();
-    }
+  Future<void> _saveSessionCookie(String? cookie) async {
+    if (cookie == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('session_cookie', cookie);
   }
 
   Future<void> _performLogin() async {
@@ -95,10 +82,12 @@ class _AuthScreenState extends State<AuthScreen> {
         latitude: position?.latitude,
         longitude: position?.longitude,
       );
-      if (mounted) {
-        // CORREÇÃO: Verifica se o cadastro está completo
-        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
 
+      // --- CORREÇÃO DEFINITIVA: SALVAR O COOKIE ---
+      await _saveSessionCookie(responseData['cookie']);
+
+      if (mounted) {
+        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
         if (isRegistrationComplete) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
@@ -114,9 +103,7 @@ class _AuthScreenState extends State<AuthScreen> {
               builder: (context) => AdditionalInfoScreen(
                 registrationData: {
                   ...responseData,
-                  'isSsoUser': false, // Não é um usuário de SSO
-                  'latitude': position?.latitude,
-                  'longitude': position?.longitude,
+                  'isSsoUser': false,
                 },
               ),
             ),
@@ -137,6 +124,89 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        if (mounted) setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+      if (idToken == null) throw Exception('Não foi possível obter o token do Google.');
+
+      final position = await _locationService.getCurrentPosition();
+      if (mounted) setState(() { _currentPosition = position; });
+
+      final responseData = await _apiService.loginWithGoogle(
+        idToken,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+
+      // --- CORREÇÃO DEFINITIVA: SALVAR O COOKIE ---
+      await _saveSessionCookie(responseData['cookie']);
+
+      if (mounted) {
+        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
+        if (isRegistrationComplete) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => HomeScreen(
+                initialPosition: _currentPosition,
+                loginResponse: responseData,
+              ),
+            ),
+          );
+        } else {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => AdditionalInfoScreen(
+                registrationData: {
+                  ...responseData,
+                  'isSsoUser': true,
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+  /////////////////////////////////////////////////////////////////////////
+
+  void _toggleForm(bool showLogin) {
+    if (_showLogin != showLogin) {
+      _formKey.currentState?.reset();
+      _emailController.clear();
+      _passwordController.clear();
+      FocusScope.of(context).unfocus();
+      setState(() {
+        _showLogin = showLogin;
+      });
+    }
+  }
+
+  Future<void> _handlePrimaryAction() async {
+    if (_showLogin) {
+      _performLogin();
+    } else {
+      _initiateRegistration();
     }
   }
 
@@ -170,77 +240,6 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _handleGoogleSignIn() async {
-    setState(() => _isLoading = true);
-    try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
-      if (googleUser == null) {
-        if (mounted) setState(() => _isLoading = false);
-        return;
-      }
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-
-      if (idToken == null) {
-        throw Exception('Não foi possível obter o token do Google.');
-      }
-
-      final position = await _locationService.getCurrentPosition();
-      if (mounted) {
-        setState(() {
-          _currentPosition = position;
-        });
-      }
-
-      final responseData = await _apiService.loginWithGoogle(
-        idToken,
-        latitude: position?.latitude,
-        longitude: position?.longitude,
-      );
-
-      if (mounted) {
-        // CORREÇÃO: Verifica se o cadastro do usuário SSO está completo
-        final bool isRegistrationComplete = responseData['isRegistrationComplete'] ?? false;
-
-        if (isRegistrationComplete) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (context) => HomeScreen(
-                initialPosition: _currentPosition,
-                loginResponse: responseData,
-              ),
-            ),
-          );
-        } else {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => AdditionalInfoScreen(
-                registrationData: {
-                  ...responseData,
-                  'isSsoUser': true, // É um usuário SSO
-                  'latitude': position?.latitude,
-                  'longitude': position?.longitude,
-                },
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao fazer login com Google: ${e.toString()}')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
     }
   }
 
