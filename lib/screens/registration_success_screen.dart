@@ -2,9 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/home_screen.dart';
-import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // 1. Importe a nova tela
+import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // Importe a tela
 
-// Cores primárias do seu app
+// Cores
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color lightTextColor = Color(0xFF6B7280);
@@ -54,11 +54,11 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildPrimaryButton(
                 text: 'Cadastrar evento',
                 onPressed: () {
-                  // --- 2. CORREÇÃO APLICADA AQUI ---
-                  // Navega para a primeira etapa do cadastro de promoção
+                  // --- CORREÇÃO APLICADA AQUI ---
+                  // Agora estamos passando os dados do usuário (loginResponse) para a próxima tela.
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const CreatePromotionStep1Screen(),
+                      builder: (context) => CreatePromotionStep1Screen(loginResponse: userData),
                     ),
                   );
                 },

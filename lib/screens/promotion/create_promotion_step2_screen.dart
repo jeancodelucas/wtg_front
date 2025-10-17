@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/services/location_service.dart';
+import 'create_promotion_step3_screen.dart';
 
 // --- Paleta de Cores ---
 const Color primaryAppColor = Color(0xFF6A00FF);
@@ -42,6 +43,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
   final _logradouroController = TextEditingController();
   final _cidadeController = TextEditingController();
   final _numeroController = TextEditingController();
+  final _complementoController = TextEditingController(); // Controller adicionado
   final _pontoReferenciaController = TextEditingController();
   final _observacoesController = TextEditingController();
 
@@ -55,7 +57,6 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
   void initState() {
     super.initState();
     _fetchCurrentUserLocation();
-    // Adiciona o listener para o foco do CEP
     _cepFocusNode.addListener(() {
       if (!_cepFocusNode.hasFocus) {
         _fetchAddressFromCep();
@@ -71,6 +72,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     _logradouroController.dispose();
     _cidadeController.dispose();
     _numeroController.dispose();
+    _complementoController.dispose();
     _pontoReferenciaController.dispose();
     _observacoesController.dispose();
     _mapController?.dispose();
@@ -82,6 +84,9 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     final position = await _locationService.getCurrentPosition();
     if (position != null) {
       _updateMapLocation(LatLng(position.latitude, position.longitude));
+    } else {
+      // Fallback para uma localização padrão se a do usuário falhar
+      _updateMapLocation(const LatLng(-8.057838, -34.870639));
     }
     setState(() => _mapIsLoading = false);
   }
@@ -146,52 +151,28 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     });
   }
 
-  Future<void> _submitFinalPromotion() async {
-    if (!_formKey.currentState!.validate() || _currentLatLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Por favor, preencha todos os campos e confirme a localização.')));
-      return;
-    }
+  void _continueToNextStep() {
+    if (!_formKey.currentState!.validate()) return;
     
-    setState(() => _isLoading = true);
+    final fullPromotionData = {
+      ...widget.promotionData,
+      'addressData': {
+        "address": _logradouroController.text,
+        "number": int.tryParse(_numeroController.text) ?? 0,
+        "postalCode": _cepController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+        "reference": _pontoReferenciaController.text,
+        "obs": _observacoesController.text,
+        "complement": _complementoController.text, // Campo adicionado
+      },
+      'coordinates': _currentLatLng,
+    };
 
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? cookie = prefs.getString('session_cookie');
-      if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
-
-      final addressData = {
-        "address": _logradouroController.text, "number": int.tryParse(_numeroController.text) ?? 0,
-        "postalCode": _cepController.text.replaceAll(RegExp(r'[^0-9]'), ''), "reference": _pontoReferenciaController.text,
-        "obs": _observacoesController.text, "complement": "", 
-      };
-
-      final promotionData = {
-        "title": widget.promotionData['title'], "description": widget.promotionData['description'],
-        "obs": widget.promotionData['obs'], "promotionType": (widget.promotionData['promotionType'] as PromotionType).name.toUpperCase(),
-        "active": true, "free": widget.promotionData['isFree'],
-        "latitude": _currentLatLng!.latitude, "longitude": _currentLatLng!.longitude,
-        "address": addressData,
-      };
-      
-      final createResponse = await _apiService.createPromotion(promotionData, cookie);
-      final newPromotionId = createResponse['id']?.toString();
-      if (newPromotionId == null) throw Exception('Não foi possível obter o ID da promoção criada.');
-      
-      final List<File> images = widget.promotionData['images'];
-      if (images.isNotEmpty) await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
-      
-      await _apiService.completePromotionRegistration(newPromotionId, cookie);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
-        int count = 0;
-        Navigator.of(context).popUntil((_) => count++ >= 2);
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (context) => CreatePromotionStep3Screen(
+        promotionData: fullPromotionData,
+        loginResponse: widget.promotionData['loginResponse'],
+      ),
+    ));
   }
 
   @override
@@ -236,21 +217,24 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 100, child: _buildTextField(label: 'Número', controller: _numeroController, keyboardType: TextInputType.number, inputFormatters: [LengthLimitingTextInputFormatter(4)])),
+                    SizedBox(width: 100, child: _buildTextField(label: 'Número', controller: _numeroController, keyboardType: TextInputType.number, inputFormatters: [LengthLimitingTextInputFormatter(5)])),
                     const SizedBox(width: 16),
                     Expanded(child: _buildTextField(label: 'Cidade', controller: _cidadeController)),
                   ],
                 ),
                 const SizedBox(height: 24),
                 
-                _buildTextField(label: 'Ponto de referência', controller: _pontoReferenciaController),
+                _buildTextField(label: 'Complemento', controller: _complementoController, isOptional: true),
                 const SizedBox(height: 24),
 
-                _buildTextField(label: 'Observações', controller: _observacoesController),
+                _buildTextField(label: 'Ponto de referência', controller: _pontoReferenciaController, isOptional: true),
+                const SizedBox(height: 24),
+
+                _buildTextField(label: 'Observações', controller: _observacoesController, isOptional: true, maxLines: 3),
                 const SizedBox(height: 40),
                 
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _submitFinalPromotion,
+                  onPressed: _isLoading ? null : _continueToNextStep,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryAppColor,
                     minimumSize: const Size(double.infinity, 56),
@@ -336,7 +320,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     );
   }
 
-  Widget _buildTextField({required String label, required TextEditingController controller, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters, FocusNode? focusNode}) {
+  Widget _buildTextField({required String label, required TextEditingController controller, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters, FocusNode? focusNode, bool isOptional = false, int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -347,7 +331,13 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
           focusNode: focusNode,
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
-          validator: (value) => (value == null || value.isEmpty) ? 'Campo obrigatório' : null,
+          maxLines: maxLines,
+          validator: (value) {
+            if (!isOptional && (value == null || value.isEmpty)) {
+              return 'Campo obrigatório';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: textFieldBackgroundColor,

@@ -4,16 +4,16 @@ import 'package:image_picker/image_picker.dart';
 import 'package:wtg_front/models/promotion_type.dart';
 import 'create_promotion_step2_screen.dart';
 
-// --- Paleta de Cores Baseada no seu Design ---
-const Color primaryAppColor = Color(0xFFec9724); // Roxo principal do design
+const Color primaryAppColor = Color(0xFF6A00FF);
 const Color backgroundColor = Color(0xFFF8F8FA);
 const Color textFieldBackgroundColor = Colors.white;
 const Color placeholderColor = Color(0xFFE0E0E0);
-const Color darkTextColor = Color(0xFF002956);
+const Color darkTextColor = Color(0xFF2D3748);
 const Color lightTextColor = Color(0xFF718096);
 
 class CreatePromotionStep1Screen extends StatefulWidget {
-  const CreatePromotionStep1Screen({super.key});
+  final Map<String, dynamic> loginResponse;
+  const CreatePromotionStep1Screen({super.key, required this.loginResponse});
 
   @override
   State<CreatePromotionStep1Screen> createState() => _CreatePromotionStep1ScreenState();
@@ -21,15 +21,11 @@ class CreatePromotionStep1Screen extends StatefulWidget {
 
 class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen> {
   final _formKey = GlobalKey<FormState>();
-
-  // Controladores e variáveis de estado
   final _nomeController = TextEditingController();
   final _infoController = TextEditingController();
   final _obsController = TextEditingController();
-  
   final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
-  
   PromotionType? _selectedPromotionType;
   bool _isFree = false;
 
@@ -43,17 +39,10 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
 
   Future<void> _pickImages() async {
     if (_selectedImages.length >= 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Você pode selecionar no máximo 6 imagens.')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Você pode selecionar no máximo 6 imagens.')));
       return;
     }
-
-    final List<XFile> pickedFiles = await _picker.pickMultiImage(
-      imageQuality: 85, // Leve compressão para performance
-      limit: 6 - _selectedImages.length,
-    );
-
+    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 85, limit: 6 - _selectedImages.length);
     if (pickedFiles.isNotEmpty) {
       setState(() {
         _selectedImages.addAll(pickedFiles.map((file) => File(file.path)));
@@ -76,19 +65,11 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'promotionType': _selectedPromotionType,
         'isFree': _isFree,
         'images': _selectedImages,
+        'loginResponse': widget.loginResponse,
       };
       Navigator.of(context).push(MaterialPageRoute(
         builder: (context) => CreatePromotionStep2Screen(promotionData: promotionData),
       ));
-
-      // TODO: Navegar para a próxima tela (Step 2: Localização)
-      // Navigator.of(context).push(MaterialPageRoute(
-      //   builder: (context) => CreatePromotionStep2Screen(promotionData: promotionData),
-      // ));
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Dados da Etapa 1 salvos! Próximo passo: Localização.')),
-      );
     }
   }
 
@@ -103,14 +84,7 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
           icon: const Icon(Icons.arrow_back, color: darkTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'cadastre seu rolé',
-          style: TextStyle(
-            color: darkTextColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
-          ),
-        ),
+        title: const Text('cadastre seu rolé', style: TextStyle(color: darkTextColor, fontWeight: FontWeight.bold, fontSize: 22)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -137,21 +111,12 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
                 ElevatedButton(
                   onPressed: _continueToNextStep,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFd74533), // Cor dos botões de continuar
+                    backgroundColor: const Color(0xFFd74533),
                     minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Continuar',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: const Text('Continuar', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -166,7 +131,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Adaptação do breadcrumb do seu app de registro
         _buildStepIndicator(step: 1, currentStep: currentStep, icon: Icons.storefront),
         _buildConnector(isComplete: currentStep > 1),
         _buildStepIndicator(step: 2, currentStep: currentStep, icon: Icons.location_on_outlined),
@@ -179,7 +143,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
   Widget _buildStepIndicator({required int step, required int currentStep, required IconData icon}) {
     final bool isActive = step == currentStep;
     final bool isComplete = step < currentStep;
-
     return Column(
       children: [
         Icon(icon, color: isActive || isComplete ? primaryAppColor : Colors.grey[400], size: 28),
@@ -205,17 +168,12 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
       physics: const NeverScrollableScrollPhysics(),
       itemCount: 6,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.0,
+        crossAxisCount: 3, crossAxisSpacing: 12, mainAxisSpacing: 12, childAspectRatio: 1.0,
       ),
       itemBuilder: (context, index) {
         if (index < _selectedImages.length) {
-          // Exibe a imagem selecionada
           return _buildImageItem(_selectedImages[index], index);
         } else {
-          // Exibe o placeholder
           return _buildImagePlaceholder(index);
         }
       },
@@ -230,16 +188,12 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         children: [
           Image.file(imageFile, fit: BoxFit.cover),
           Positioned(
-            top: 4,
-            right: 4,
+            top: 4, right: 4,
             child: GestureDetector(
               onTap: () => _removeImage(index),
               child: Container(
                 padding: const EdgeInsets.all(2),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
                 child: const Icon(Icons.close, color: Colors.white, size: 16),
               ),
             ),
@@ -259,11 +213,7 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
           borderRadius: BorderRadius.circular(16.0),
           border: Border.all(color: placeholderColor, width: 1.5),
         ),
-        child: Icon(
-          isFirstPlaceholder ? Icons.camera_alt_outlined : Icons.add,
-          color: Colors.grey[400],
-          size: 32,
-        ),
+        child: Icon(isFirstPlaceholder ? Icons.camera_alt_outlined : Icons.add, color: Colors.grey[400], size: 32),
       ),
     );
   }
@@ -282,18 +232,9 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
             hintStyle: const TextStyle(color: Colors.grey),
             filled: true,
             fillColor: textFieldBackgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: placeholderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: placeholderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: primaryAppColor, width: 2),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryAppColor, width: 2)),
           ),
         ),
       ],
@@ -317,17 +258,14 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
                   setState(() { _selectedPromotionType = value; });
                 },
                 items: PromotionType.values.map((type) {
-                  return DropdownMenuItem(
-                    value: type,
-                    child: Text(type.displayName),
-                  );
+                  return DropdownMenuItem(value: type, child: Text(type.displayName));
                 }).toList(),
                 validator: (value) => value == null ? 'Obrigatório' : null,
                 decoration: InputDecoration(
                   filled: true,
                   fillColor: textFieldBackgroundColor,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: placeholderColor)),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: placeholderColor)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
                   focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: primaryAppColor, width: 2)),
                 ),
               ),
