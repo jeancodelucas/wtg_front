@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/home_screen.dart'; // Import da HomeScreen
+import 'package:wtg_front/screens/promotion/create_promotion_screen.dart';
 
 // Asumindo que as cores primárias do seu app são estas
 const Color primaryColor = Color(0xFF214886);
@@ -54,7 +55,11 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildPrimaryButton(
                 text: 'Cadastrar evento',
                 onPressed: () {
-                  // TODO: Adicionar navegação para a tela de cadastro de eventos
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const CreatePromotionScreen(),
+                    ),
+                  );
                 },
               ),
               const SizedBox(height: 16),

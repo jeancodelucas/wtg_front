@@ -3,15 +3,100 @@
 import 'dart:convert';
 import 'dart:io' show Platform;
 import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:http_parser/http_parser.dart';
+import 'package:mime/mime.dart';
 
 class ApiService {
   final String _baseUrl = _getBaseUrl();
+  String? _sessionCookie;
+
+  void setSessionCookie(String? cookie) {
+    _sessionCookie = cookie;
+  }
 
   static String _getBaseUrl() {
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080/api';
     } else {
       return 'http://192.168.1.42:8080/api';
+    }
+  }
+
+  Future<Map<String, dynamic>> getCoordinatesFromAddress(Map<String, dynamic> addressData) async {
+    final uri = Uri.parse('$_baseUrl/geocoding/from-address');
+    final headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
+      if (_sessionCookie != null) 'Cookie': _sessionCookie!,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: jsonEncode(addressData),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['error'] ?? 'Falha ao obter coordenadas.');
+    }
+  }
+
+  // --- MÉTODO NOVO ---
+  /// Cria uma nova promoção (evento) no backend.
+  Future<Map<String, dynamic>> createPromotion(Map<String, dynamic> promotionData) async {
+    final uri = Uri.parse('$_baseUrl/promotions');
+     final headers = {
+      'Content-Type': 'application/json; charset=UTF-8',
+      if (_sessionCookie != null) 'Cookie': _sessionCookie!,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: headers,
+      body: jsonEncode(promotionData),
+    );
+
+    if (response.statusCode == 201) {
+      // Retorna o corpo da resposta, que deve ser o UserDto atualizado
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao criar o evento.');
+    }
+  }
+
+  // --- MÉTODO NOVO ---
+  /// Faz o upload de uma lista de imagens para uma promoção existente.
+Future<void> uploadPromotionImages(int promotionId, List<File> images) async {
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/images');
+    var request = http.MultipartRequest('POST', uri);
+
+    if (_sessionCookie != null) {
+      request.headers['Cookie'] = _sessionCookie!;
+    }
+
+    for (var imageFile in images) {
+      // 2. Detecta o MIME type do arquivo (ex: 'image/png', 'image/jpeg')
+      final mimeType = lookupMimeType(imageFile.path);
+      final mediaType = mimeType != null ? MediaType.parse(mimeType) : null;
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images', // O nome do campo esperado pelo backend
+          imageFile.path,
+          contentType: mediaType, // 3. Usa o MediaType dinâmico
+        ),
+      );
+    }
+
+    final response = await request.send();
+
+    if (response.statusCode != 201) {
+      final responseBody = await response.stream.bytesToString();
+      throw Exception('Falha ao fazer upload das imagens: $responseBody');
     }
   }
 
