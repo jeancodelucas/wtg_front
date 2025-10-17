@@ -1,20 +1,18 @@
-// lib/screens/registration/2_token_screen.dart
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration/3_password_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// --- CORES ATUALIZADAS ---
+// Cores
 const Color primaryButtonColor = Color(0xFFd74533);
 const Color messageTextColor = Color(0xFFec9724);
 const Color darkTextColor = Color(0xFF002956);
 const Color borderColor = Color(0xFFD1D5DB);
 
-// --- CORES DO BREADCRUMB ---
+// Cores do Breadcrumb
 const Color verificationStepColor = Color(0xFF214886);
-const Color passwordStepColor = Color(0xFF10ac84);
-const Color infoStepColor = Color(0xFF1F73F8);
+const Color passwordStepColor = Color(0xFFec9b28);
+const Color infoStepColor = Color(0xFFd74533);
 
 class TokenScreen extends StatefulWidget {
   final String email;
@@ -122,9 +120,6 @@ class _TokenScreenState extends State<TokenScreen> {
       controller.dispose();
     }
     for (var focusNode in _focusNodes) {
-      focusNode.removeListener(() {
-        setState(() {});
-      });
       focusNode.dispose();
     }
     super.dispose();
@@ -149,7 +144,8 @@ class _TokenScreenState extends State<TokenScreen> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildBreadcrumbs(currentStep: 1),
+                      // --- BREADCRUMB ATUALIZADO ---
+                      _buildBreadcrumbs(),
                       const SizedBox(height: 32),
                       const Text('Digite o código de verificação',
                           style: TextStyle(
@@ -157,22 +153,17 @@ class _TokenScreenState extends State<TokenScreen> {
                               fontWeight: FontWeight.bold,
                               color: darkTextColor)),
                       const SizedBox(height: 8),
-                      // --- WIDGET DE TEXTO ATUALIZADO ---
                       RichText(
                         text: TextSpan(
                           style: const TextStyle(
                             fontSize: 12,
-                            color: messageTextColor, // Cor do texto
+                            color: messageTextColor,
                           ),
                           children: [
-                            const TextSpan(
-                                text:
-                                    'Um novo código de verificação foi enviado para o e-mail '),
+                            const TextSpan(text: 'Um novo código de verificação foi enviado para o e-mail '),
                             TextSpan(
                               text: widget.email,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold, // Negrito
-                              ),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
                             ),
                           ],
                         ),
@@ -197,12 +188,10 @@ class _TokenScreenState extends State<TokenScreen> {
                                 counterText: '',
                                 enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
-                                    borderSide:
-                                        const BorderSide(color: borderColor)),
+                                    borderSide: const BorderSide(color: borderColor)),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide(
-                                      color: focusedColor, width: 2.0),
+                                  borderSide: BorderSide(color: focusedColor, width: 2.0),
                                 ),
                               ),
                               onChanged: (value) {
@@ -219,18 +208,15 @@ class _TokenScreenState extends State<TokenScreen> {
                       const SizedBox(height: 24),
                       Center(child: Text(timerText)),
                       const SizedBox(height: 16),
-                      // --- BOTÃO ATUALIZADO ---
                       ElevatedButton(
                         onPressed: _isLoading ? null : _validateToken,
                         style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                primaryButtonColor, // Cor do botão
+                            backgroundColor: primaryButtonColor,
                             minimumSize: const Size(double.infinity, 50),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12))),
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
+                            ? const CircularProgressIndicator(color: Colors.white)
                             : const Text('Continuar',
                                 style: TextStyle(
                                     color: Colors.white,
@@ -253,57 +239,57 @@ class _TokenScreenState extends State<TokenScreen> {
                     ]))));
   }
   
-  Widget _buildBreadcrumbs({required int currentStep}) {
+  // --- NOVOS WIDGETS PARA O BREADCRUMB ---
+
+  Widget _buildBreadcrumbs() {
+    const int currentStep = 1;
     return Row(
       children: [
-        _buildStep(
+        _buildStepIndicator(
+          step: 1,
+          currentStep: currentStep,
           icon: Icons.mark_email_read_outlined,
-          label: 'Verificação',
-          stepColor: verificationStepColor,
-          isComplete: currentStep > 1,
-          isActive: currentStep == 1,
+          activeColor: verificationStepColor,
         ),
         _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
-        _buildStep(
+        _buildStepIndicator(
+          step: 2,
+          currentStep: currentStep,
           icon: Icons.lock_outline,
-          label: 'Senha',
-          stepColor: passwordStepColor,
-          isComplete: currentStep > 2,
-          isActive: currentStep == 2,
+          activeColor: passwordStepColor,
         ),
         _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
-        _buildStep(
+        _buildStepIndicator(
+          step: 3,
+          currentStep: currentStep,
           icon: Icons.person_outline,
-          label: 'Dados',
-          stepColor: infoStepColor,
-          isComplete: false, 
-          isActive: currentStep == 3,
+          activeColor: infoStepColor,
         ),
       ],
     );
   }
 
-  Widget _buildStep({required IconData icon, required String label, required Color stepColor, required bool isActive, required bool isComplete}) {
-    final color = isActive || isComplete ? stepColor : Colors.grey[400];
-    
+  Widget _buildStepIndicator({
+    required int step,
+    required int currentStep,
+    required IconData icon,
+    required Color activeColor,
+  }) {
+    final bool isActive = step == currentStep;
+    final bool isComplete = step < currentStep;
+    final Color color = isActive || isComplete ? activeColor : Colors.grey[400]!;
+
     return Column(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: isActive || isComplete ? stepColor : Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: color!, width: 2),
-          ),
-          child: Icon(
-            icon,
-            color: isActive || isComplete ? Colors.white : Colors.grey[400],
-            size: 22,
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          step.toString(),
+          style: TextStyle(
+            color: color,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(color: darkTextColor, fontSize: 12, fontWeight: isActive || isComplete ? FontWeight.bold : FontWeight.normal)),
       ],
     );
   }
@@ -312,7 +298,7 @@ class _TokenScreenState extends State<TokenScreen> {
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
+        margin: const EdgeInsets.only(bottom: 32, left: 4, right: 4),
         color: isComplete ? color : Colors.grey[300],
       ),
     );

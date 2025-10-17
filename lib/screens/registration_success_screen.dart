@@ -1,16 +1,15 @@
 // lib/screens/registration_success_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:wtg_front/screens/home_screen.dart'; // Import da HomeScreen
-import 'package:wtg_front/screens/promotion/create_promotion_screen.dart';
+import 'package:wtg_front/screens/home_screen.dart';
+import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // 1. Importe a nova tela
 
-// Asumindo que as cores primárias do seu app são estas
+// Cores primárias do seu app
 const Color primaryColor = Color(0xFF214886);
 const Color darkTextColor = Color(0xFF1F2937);
 const Color lightTextColor = Color(0xFF6B7280);
 
 class RegistrationSuccessScreen extends StatelessWidget {
-  // --- MUDANÇA 1: Recebe os dados do usuário ---
   final Map<String, dynamic> userData;
 
   const RegistrationSuccessScreen({super.key, required this.userData});
@@ -55,9 +54,11 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildPrimaryButton(
                 text: 'Cadastrar evento',
                 onPressed: () {
+                  // --- 2. CORREÇÃO APLICADA AQUI ---
+                  // Navega para a primeira etapa do cadastro de promoção
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => const CreatePromotionScreen(),
+                      builder: (context) => const CreatePromotionStep1Screen(),
                     ),
                   );
                 },
@@ -66,8 +67,6 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildSecondaryButton(
                 text: 'Ir para a Home',
                 onPressed: () {
-                  // --- MUDANÇA 2: Implementação do botão ---
-                  // Navega para a HomeScreen e remove todas as telas anteriores da pilha
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (context) => HomeScreen(loginResponse: userData),
