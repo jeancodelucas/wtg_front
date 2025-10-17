@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
@@ -116,9 +118,10 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
       final String fullAddress = '${_logradouroController.text}, ${_cidadeController.text}, ${_ufController.text}';
       final locations = await locationFromAddress(fullAddress);
       if (locations.isNotEmpty) {
-        _updateMapLocation(LatLng(locations.first.latitude, locations.first.longitude));
+        final newLatLng = LatLng(locations.first.latitude, locations.first.longitude);
+        _updateMapLocation(newLatLng);
         _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(LatLng(locations.first.latitude, locations.first.longitude), 16),
+          CameraUpdate.newLatLngZoom(newLatLng, 16),
         );
       }
     } catch (e) { /* Ignora erro */ }
@@ -216,6 +219,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
                 _buildInteractiveMap(),
                 const SizedBox(height: 32),
 
+                // --- NOVO LAYOUT DOS INPUTS ---
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -225,8 +229,10 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
                   ],
                 ),
                 const SizedBox(height: 24),
+                
                 _buildTextField(label: 'Logradouro', controller: _logradouroController),
                 const SizedBox(height: 24),
+
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -236,8 +242,10 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
                   ],
                 ),
                 const SizedBox(height: 24),
+                
                 _buildTextField(label: 'Ponto de referência', controller: _pontoReferenciaController),
                 const SizedBox(height: 24),
+
                 _buildTextField(label: 'Observações', controller: _observacoesController),
                 const SizedBox(height: 40),
                 
@@ -274,6 +282,9 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
               : _currentLatLng == null
                   ? const Center(child: Text('Não foi possível obter a localização.'))
                   : GoogleMap(
+                      gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
+                        Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+                      },
                       mapType: MapType.normal,
                       initialCameraPosition: CameraPosition(target: _currentLatLng!, zoom: 16),
                       onMapCreated: (GoogleMapController controller) {
