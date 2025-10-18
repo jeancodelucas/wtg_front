@@ -1,8 +1,9 @@
 // lib/screens/registration_success_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:wtg_front/screens/home_screen.dart';
 import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // Importe a tela
+import 'package:wtg_front/screens/main_screen.dart';
+
 
 // Cores
 const Color primaryColor = Color(0xFF214886);
@@ -69,7 +70,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (context) => HomeScreen(loginResponse: userData),
+                      builder: (context) => MainScreen(loginResponse: userData),
                     ),
                     (route) => false,
                   );
