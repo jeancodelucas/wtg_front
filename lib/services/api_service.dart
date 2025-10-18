@@ -40,6 +40,51 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getMyPromotion(String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/my-promotion');
+    print('Buscando promoção do usuário em: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+    );
+
+    print('Resposta de /my-promotion: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao buscar sua promoção');
+    }
+  }
+  
+  Future<List<dynamic>> getPromotionImageViews(
+      int promotionId, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/image-urls');
+    print('Buscando URLs das imagens em: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+    );
+    print('Resposta de /image-urls: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(
+          errorBody['message'] ?? 'Falha ao buscar imagens da promoção');
+    }
+  }
+
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions');
