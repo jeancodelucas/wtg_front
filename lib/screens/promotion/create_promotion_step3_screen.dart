@@ -51,7 +51,7 @@ class _CreatePromotionStep3ScreenState
         "obs": widget.promotionData['obs'],
         "promotionType": (widget.promotionData['promotionType'] as PromotionType).name.toUpperCase(),
         "active": _isVisible, // Usa o valor do switch
-        "free": widget.promotionData['isFree'],
+        "completeRegistration": widget.promotionData['isCompleteRegistration'],
         "latitude": coordinates.latitude,
         "longitude": coordinates.longitude,
         "address": addressData,

@@ -3,10 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:wtg_front/screens/profile_screen.dart';
 import 'package:wtg_front/screens/registration_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wtg_front/providers/user_provider.dart';
 
-class LoginScreen extends ConsumerWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
   @override
