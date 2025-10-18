@@ -8,6 +8,12 @@ const Color darkTextColor = Color(0xFF1F2937);
 const Color lightTextColor = Color(0xFF6B7280);
 const Color primaryColor = Color(0xFF214886);
 const Color editButtonColor = Color(0xFF2563EB);
+const Color visibleColor = Color(0xFF10ac84);
+const Color invisibleColor = Color(0xFF6B7280);
+const Color freeColor = Color(0xFF10B981);
+const Color paidColor = Color(0xFFF59E0B);
+// --- NOVA COR PARA O INDICADOR DE COMENTÁRIOS ---
+const Color commentsColor = Color(0xFF3B82F6); // Um azul para "Comentários"
 
 class MyEventsTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -108,9 +114,11 @@ class _MyEventsTabState extends State<MyEventsTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildImageGallery(), // Galeria de imagens
-            const SizedBox(height: 24),
-            _buildDetailsCard(), // Card de detalhes
+            _buildImageGallery(),
+            const SizedBox(height: 16),
+            _buildStatusRow(), // Linha com os 3 status
+            const SizedBox(height: 16),
+            _buildDetailsCard(),
           ],
         ),
       ),
@@ -167,6 +175,116 @@ class _MyEventsTabState extends State<MyEventsTab> {
           child: const Icon(Icons.error_outline, color: Colors.red),
         );
       },
+    );
+  }
+
+  Widget _buildStatusRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _buildVisibilityStatus(),
+        _buildPriceStatus(),
+        _buildCommentsButton(),
+      ],
+    );
+  }
+
+  Widget _buildVisibilityStatus() {
+    final bool isActive = _promotion?['active'] ?? false;
+    final Color statusColor = isActive ? visibleColor : invisibleColor;
+    final String statusText = isActive ? 'Visível' : 'Invisível';
+    final IconData statusIcon =
+        isActive ? Icons.visibility_outlined : Icons.visibility_off_outlined;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceStatus() {
+    final bool isFree = _promotion?['free'] ?? true;
+    final Color statusColor = isFree ? freeColor : paidColor;
+    final String statusText = isFree ? 'Gratuito' : 'Pago';
+    final IconData statusIcon = isFree
+        ? Icons.local_activity_outlined
+        : Icons.attach_money_outlined;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- WIDGET DE COMENTÁRIOS ATUALIZADO PARA SEGUIR O PADRÃO ---
+  Widget _buildCommentsButton() {
+    const Color statusColor = commentsColor;
+    const String statusText = 'Comentários';
+    const IconData statusIcon = Icons.chat_bubble_outline;
+
+    return GestureDetector(
+      onTap: () {
+        // TODO: Implementar navegação para a tela de comentários
+        print('Botão de comentários clicado!');
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(statusIcon, color: statusColor, size: 16),
+            SizedBox(width: 8),
+            Text(
+              statusText,
+              style: TextStyle(
+                color: statusColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
