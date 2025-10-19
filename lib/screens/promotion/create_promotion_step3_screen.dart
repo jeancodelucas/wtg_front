@@ -33,76 +33,70 @@ class _CreatePromotionStep3ScreenState
   bool _isLoading = false;
   bool _isVisible = true; // O switch começa ligado
 
-  Future<void> _submitFinalPromotion() async {
-  setState(() => _isLoading = true);
+Future<void> _submitFinalPromotion() async {
+    setState(() => _isLoading = true);
 
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final String? cookie = prefs.getString('session_cookie');
-    if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? cookie = prefs.getString('session_cookie');
+      if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
 
-    // Pega os dados acumulados das telas anteriores
-    final LatLng coordinates = widget.promotionData['coordinates'];
-    final Map<String, dynamic> addressData = widget.promotionData['addressData'];
-    
-    // ============================ INÍCIO DA CORREÇÃO ============================
+      final LatLng coordinates = widget.promotionData['coordinates'];
+      final Map<String, dynamic> addressData = widget.promotionData['addressData'];
+      final bool isFree = widget.promotionData['free'] as bool;
 
-    // 1. Recupera o valor de 'free' vindo da step1
-    final bool isFree = widget.promotionData['free'] as bool;
+      final Map<String, dynamic> promotionDataPayload = {
+        "title": widget.promotionData['title'],
+        "description": widget.promotionData['description'],
+        "obs": widget.promotionData['obs'],
+        "promotionType": (widget.promotionData['promotionType'] as String).toUpperCase(),
+        "active": _isVisible,
+        "completeRegistration": false, // Será completado no passo seguinte
+        "address": addressData,
+        "free": isFree,
+        
+        // --- CORREÇÃO ADICIONADA AQUI ---
+        "latitude": coordinates.latitude,
+        "longitude": coordinates.longitude,
+        // --- FIM DA CORREÇÃO ---
+      };
 
-    // 2. Monta o payload base
-    final Map<String, dynamic> promotionDataPayload = {
-      "title": widget.promotionData['title'],
-      "description": widget.promotionData['description'],
-      "obs": widget.promotionData['obs'],
-      "promotionType": (widget.promotionData['promotionType'] as String).toUpperCase(),
-      "active": _isVisible,
-      "completeRegistration": true,
-      "latitude": coordinates.latitude,
-      "longitude": coordinates.longitude,
-      "address": addressData,
-      "free": isFree,
-    };
-
-    // 3. Adiciona 'ticketValue' APENAS se a promoção NÃO for gratuita
-    if (!isFree) {
-      final String? ticketValueString = widget.promotionData['ticketValue'];
-      final double? ticketValue = ticketValueString != null ? double.tryParse(ticketValueString) : null;
-      
-      if (ticketValue == null || ticketValue <= 0) {
-        throw Exception('Valor do ingresso é inválido para uma promoção paga.');
+      if (!isFree) {
+        final String? ticketValueString = widget.promotionData['ticketValue'];
+        final double? ticketValue = ticketValueString != null ? double.tryParse(ticketValueString) : null;
+        
+        if (ticketValue == null || ticketValue <= 0) {
+          throw Exception('Valor do ingresso é inválido para uma promoção paga.');
+        }
+        promotionDataPayload['ticketValue'] = ticketValue;
       }
-      promotionDataPayload['ticketValue'] = ticketValue;
-    }
-    // ============================ FIM DA CORREÇÃO ============================
-    
-    // O restante do método continua igual...
-    final createResponse = await _apiService.createPromotion(promotionDataPayload, cookie);
-    final newPromotionId = createResponse['id']?.toString();
-    if (newPromotionId == null) throw Exception('Não foi possível obter o ID da promoção criada.');
-    
-    final List<File> images = widget.promotionData['images'];
-    if (images.isNotEmpty) await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
-    
-    await _apiService.completePromotionRegistration(newPromotionId, cookie);
+      
+      final createResponse = await _apiService.createPromotion(promotionDataPayload, cookie);
+      final newPromotionId = createResponse['id']?.toString();
+      if (newPromotionId == null) throw Exception('Não foi possível obter o ID da promoção criada.');
+      
+      final List<File> images = widget.promotionData['images'];
+      if (images.isNotEmpty) await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
+      
+      await _apiService.completePromotionRegistration(newPromotionId, cookie);
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (context) => HomeScreen(loginResponse: widget.loginResponse),
-        ),
-        (route) => false
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => HomeScreen(loginResponse: widget.loginResponse),
+          ),
+          (route) => false
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   @override
   Widget build(BuildContext context) {
