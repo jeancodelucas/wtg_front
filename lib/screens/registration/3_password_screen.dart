@@ -1,21 +1,25 @@
+// lib/screens/registration/3_password_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/registration/additional_info_screen.dart';
 
-// Cores
-const Color primaryButtonColor = Color(0xFFd74533);
-const Color darkTextColor = Color(0xFF002956);
-const Color placeholderColor = Color(0xFFE0E0E0);
-const Color passwordWeakColor = Color(0xFFd74533);
-const Color passwordMediumColor = Color(0xFFec9b28);
-const Color passwordStrongColor = Color(0xFF10ac84);
+// --- PALETA DE CORES PADRONIZADA ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
 
-// Cores do Breadcrumb
-const Color verificationStepColor = Color(0xFF214886);
-const Color passwordStepColor = Color(0xFFec9b28);
-const Color infoStepColor = Color(0xFFd74533);
+// Cores do Breadcrumb e Feedback de Senha
+const Color verificationStepColor = Color(0xFF4299E1);
+const Color passwordStepColor = Color(0xFFF6AD55);
+const Color infoStepColor = Color(0xFFF56565);
+const Color passwordWeakColor = Color(0xFFF56565); // Vermelho para fraca
+const Color passwordMediumColor = Color(0xFFF6AD55); // Laranja para média
+const Color passwordStrongColor = Color(0xFF48BB78); // Verde para forte
 
 enum PasswordStrength { none, weak, medium, strong }
-
 
 class PasswordScreen extends StatefulWidget {
   final String email;
@@ -36,9 +40,9 @@ class PasswordScreen extends StatefulWidget {
 class _PasswordScreenState extends State<PasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   PasswordStrength _passwordStrength = PasswordStrength.none;
-  
+
   bool _has8Chars = false,
       _hasUppercase = false,
       _hasNumber = false,
@@ -53,6 +57,8 @@ class _PasswordScreenState extends State<PasswordScreen> {
     _passwordController.addListener(_validatePassword);
   }
 
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+
   @override
   void dispose() {
     _passwordController.removeListener(_validatePassword);
@@ -64,7 +70,7 @@ class _PasswordScreenState extends State<PasswordScreen> {
   void _validatePassword() {
     final pass = _passwordController.text;
     int score = 0;
-    
+
     setState(() {
       _has8Chars = pass.length >= 8;
       _hasUppercase = pass.contains(RegExp(r'[A-Z]'));
@@ -90,11 +96,15 @@ class _PasswordScreenState extends State<PasswordScreen> {
 
   void _continue() {
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('As senhas não coincidem.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: primaryButtonColor,
+          content: Text('As senhas não coincidem.')));
       return;
     }
     if (!(_has8Chars && _hasUppercase && _hasNumber && _hasSpecialChar)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('A senha não atende aos critérios.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          backgroundColor: primaryButtonColor,
+          content: Text('A senha não atende a todos os critérios de segurança.')));
       return;
     }
 
@@ -107,72 +117,64 @@ class _PasswordScreenState extends State<PasswordScreen> {
     };
 
     Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => AdditionalInfoScreen(registrationData: registrationData)));
+        builder: (context) =>
+            AdditionalInfoScreen(registrationData: registrationData)));
   }
+
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
 
   @override
   Widget build(BuildContext context) {
-    final bool allRequirementsMet = _has8Chars && _hasUppercase && _hasNumber && _hasSpecialChar;
-    final bool isPasswordEmpty = _passwordController.text.isEmpty;
-
-    final Color requirementsColor = isPasswordEmpty ? Colors.grey : allRequirementsMet ? passwordStrongColor : passwordWeakColor;
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: darkBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: darkTextColor),
+            icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
             onPressed: () => Navigator.of(context).pop()),
+        actions: [
+          _buildBreadcrumbs(),
+          const SizedBox(width: 16),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildBreadcrumbs(),
               const SizedBox(height: 32),
               const Text('Crie uma senha',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: darkTextColor)),
-              const SizedBox(height: 8),
+                  style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor)),
+              const SizedBox(height: 12),
               const Text('Não esqueça: a senha tem que ser forte!',
-                  style: TextStyle(fontSize: 16, color: passwordStepColor)),
+                  style: TextStyle(fontSize: 16, color: secondaryTextColor)),
               const SizedBox(height: 40),
-              
               _buildTextField(
                 label: 'Senha',
                 controller: _passwordController,
                 isObscured: _isPasswordObscured,
-                onToggleVisibility: () => setState(() => _isPasswordObscured = !_isPasswordObscured),
+                onToggleVisibility: () =>
+                    setState(() => _isPasswordObscured = !_isPasswordObscured),
               ),
+              const SizedBox(height: 16),
+              _buildPasswordStrengthIndicator(),
               const SizedBox(height: 24),
               _buildTextField(
                 label: 'Confirme sua senha',
                 controller: _confirmPasswordController,
                 isObscured: _isConfirmPasswordObscured,
-                onToggleVisibility: () => setState(() => _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
+                onToggleVisibility: () => setState(() =>
+                    _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
               ),
-              const SizedBox(height: 16),
-              _buildPasswordStrengthIndicator(),
-              const SizedBox(height: 24),
-
-              Text('Sua senha deve conter:', style: TextStyle(color: requirementsColor)),
-              _buildRequirementRow('8 caracteres', _has8Chars, requirementsColor, isPasswordEmpty),
-              _buildRequirementRow('1 letra maiúscula', _hasUppercase, requirementsColor, isPasswordEmpty),
-              _buildRequirementRow('1 número', _hasNumber, requirementsColor, isPasswordEmpty),
-              _buildRequirementRow('1 caractere especial (ex: @, \$, !, %, #, ?)', _hasSpecialChar, requirementsColor, isPasswordEmpty),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _continue,
-                style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryButtonColor,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
-                child: const Text('Continuar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
+              const SizedBox(height: 32),
+              _buildPasswordRequirements(),
+              const SizedBox(height: 40),
+              _buildPrimaryButton('Continuar', _continue, false),
             ],
           ),
         ),
@@ -180,7 +182,6 @@ class _PasswordScreenState extends State<PasswordScreen> {
     );
   }
 
-  // --- WIDGET DE INPUT PADRONIZADO ---
   Widget _buildTextField({
     required String label,
     required TextEditingController controller,
@@ -190,23 +191,41 @@ class _PasswordScreenState extends State<PasswordScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor, fontSize: 16)),
-        const SizedBox(height: 8),
+        Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: secondaryTextColor,
+                fontSize: 16)),
+        const SizedBox(height: 12),
         TextFormField(
           controller: controller,
           obscureText: isObscured,
+          style: const TextStyle(
+              color: primaryTextColor, fontWeight: FontWeight.w500),
           decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: passwordStepColor, width: 2)),
+            prefixIcon:
+                const Icon(Icons.lock_outline, color: passwordStepColor, size: 22),
             suffixIcon: onToggleVisibility != null
                 ? IconButton(
-                    icon: Icon(isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    icon: Icon(
+                      isObscured
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
+                      color: secondaryTextColor,
+                    ),
                     onPressed: onToggleVisibility,
                   )
                 : null,
+            filled: true,
+            fillColor: fieldBackgroundColor,
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: passwordStepColor, width: 2),
+            ),
           ),
         ),
       ],
@@ -217,80 +236,150 @@ class _PasswordScreenState extends State<PasswordScreen> {
     String strengthText;
     Color strengthColor;
     switch (_passwordStrength) {
-      case PasswordStrength.weak: strengthText = 'Fraca'; strengthColor = passwordWeakColor; break;
-      case PasswordStrength.medium: strengthText = 'Média'; strengthColor = passwordMediumColor; break;
-      case PasswordStrength.strong: strengthText = 'Forte'; strengthColor = passwordStrongColor; break;
-      default: strengthText = ''; strengthColor = Colors.grey[300]!;
+      case PasswordStrength.weak:
+        strengthText = 'Fraca';
+        strengthColor = passwordWeakColor;
+        break;
+      case PasswordStrength.medium:
+        strengthText = 'Média';
+        strengthColor = passwordMediumColor;
+        break;
+      case PasswordStrength.strong:
+        strengthText = 'Forte';
+        strengthColor = passwordStrongColor;
+        break;
+      default:
+        strengthText = '';
+        strengthColor = fieldBorderColor;
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Expanded(child: _buildStrengthBar(_passwordStrength.index >= 1 ? strengthColor : Colors.grey[300]!)),
+            _buildStrengthBar(
+                _passwordStrength.index >= 1 ? strengthColor : fieldBorderColor),
             const SizedBox(width: 8),
-            Expanded(child: _buildStrengthBar(_passwordStrength.index >= 2 ? strengthColor : Colors.grey[300]!)),
+            _buildStrengthBar(
+                _passwordStrength.index >= 2 ? strengthColor : fieldBorderColor),
             const SizedBox(width: 8),
-            Expanded(child: _buildStrengthBar(_passwordStrength.index >= 3 ? strengthColor : Colors.grey[300]!)),
+            _buildStrengthBar(
+                _passwordStrength.index >= 3 ? strengthColor : fieldBorderColor),
           ],
         ),
         if (strengthText.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
-            child: Text(strengthText, style: TextStyle(color: strengthColor, fontWeight: FontWeight.bold)),
+            child: Text(strengthText,
+                style: TextStyle(color: strengthColor, fontWeight: FontWeight.bold)),
           ),
       ],
     );
   }
 
   Widget _buildStrengthBar(Color color) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      height: 6,
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: 8,
+        decoration:
+            BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
-  Widget _buildRequirementRow(String text, bool met, Color dynamicColor, bool isPasswordEmpty) {
-    final Color iconColor = isPasswordEmpty ? Colors.grey : (met ? passwordStrongColor : passwordWeakColor);
-    final Color textColor = isPasswordEmpty ? Colors.grey : (met ? darkTextColor : passwordWeakColor);
+  Widget _buildPasswordRequirements() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildRequirementRow('Pelo menos 8 caracteres', _has8Chars),
+        _buildRequirementRow('Uma letra maiúscula', _hasUppercase),
+        _buildRequirementRow('Um número', _hasNumber),
+        _buildRequirementRow('Um caractere especial (ex: @#\$%)', _hasSpecialChar),
+      ],
+    );
+  }
+
+  Widget _buildRequirementRow(String text, bool met) {
+    final isPasswordEmpty = _passwordController.text.isEmpty;
+    final Color color = isPasswordEmpty
+        ? secondaryTextColor
+        : (met ? passwordStrongColor : secondaryTextColor);
+    final IconData icon = isPasswordEmpty
+        ? Icons.circle_outlined
+        : (met ? Icons.check_circle : Icons.circle_outlined);
+
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         children: [
-          Icon(met ? Icons.check_circle : Icons.circle_outlined, color: iconColor, size: 18),
-          const SizedBox(width: 8),
-          Text(text, style: TextStyle(color: textColor)),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Text(text, style: TextStyle(color: color, fontSize: 14)),
         ],
       ),
     );
   }
   
   Widget _buildBreadcrumbs() {
-    const int currentStep = 2;
-    return Row(
-      children: [
-        _buildStepIndicator(step: 1, currentStep: currentStep, icon: Icons.mark_email_read_outlined, activeColor: verificationStepColor),
-        _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
-        _buildStepIndicator(step: 2, currentStep: currentStep, icon: Icons.lock_outline, activeColor: passwordStepColor),
-        _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
-        _buildStepIndicator(step: 3, currentStep: currentStep, icon: Icons.person_outline, activeColor: infoStepColor),
-      ],
+    return Align(
+      alignment: Alignment.centerRight,
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.4,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            _buildStep(
+              icon: Icons.mark_email_read_outlined,
+              stepColor: verificationStepColor,
+              isComplete: true,
+            ),
+            _buildConnector(isComplete: true, color: passwordStepColor),
+            _buildStep(
+              icon: Icons.lock_open_outlined,
+              stepColor: passwordStepColor,
+              isActive: true,
+            ),
+            _buildConnector(isComplete: false, color: infoStepColor),
+            _buildStep(
+              icon: Icons.person_add_alt_1_outlined,
+              stepColor: infoStepColor,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildStepIndicator({required int step, required int currentStep, required IconData icon, required Color activeColor}) {
-    final bool isActive = step == currentStep;
-    final bool isComplete = step < currentStep;
-    final Color color = isActive || isComplete ? activeColor : Colors.grey[400]!;
+  Widget _buildStep({
+    required IconData icon,
+    required Color stepColor,
+    bool isActive = false,
+    bool isComplete = false,
+  }) {
+    final double iconSize = isActive ? 26.0 : 20.0;
+    final double containerSize = isActive ? 44.0 : 38.0;
+    final Color iconColor = isComplete
+        ? stepColor.withOpacity(0.4)
+        : (isActive ? Colors.white : secondaryTextColor.withOpacity(0.7));
 
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 8),
-        Text(step.toString(), style: TextStyle(color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
-      ],
+    return Container(
+      width: containerSize,
+      height: containerSize,
+      decoration: BoxDecoration(
+        color: isActive ? stepColor : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isComplete
+              ? stepColor.withOpacity(0.4)
+              : (isActive ? stepColor : fieldBorderColor),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Icon(icon, color: iconColor, size: iconSize),
+      ),
     );
   }
 
@@ -298,9 +387,37 @@ class _PasswordScreenState extends State<PasswordScreen> {
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.only(bottom: 32, left: 4, right: 4),
-        color: isComplete ? color : Colors.grey[300],
+        color: isComplete ? color.withOpacity(0.4) : fieldBorderColor,
       ),
     );
   }
+}
+
+Widget _buildPrimaryButton(
+    String text, VoidCallback onPressed, bool isLoading) {
+  return ElevatedButton(
+    onPressed: isLoading ? null : onPressed,
+    style: ElevatedButton.styleFrom(
+      backgroundColor: primaryButtonColor,
+      foregroundColor: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      minimumSize: const Size(double.infinity, 64),
+      elevation: 3,
+      shadowColor: primaryButtonColor.withOpacity(0.5),
+    ),
+    child: isLoading
+        ? const SizedBox(
+            height: 24,
+            width: 24,
+            child:
+                CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+        : Text(
+            text,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+  );
 }
