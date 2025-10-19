@@ -15,8 +15,6 @@ import 'tabs/profile_tab.dart';
 // Cores
 const Color primaryAppColor = Color(0xFF6A00FF);
 const Color darkTextColor = Color(0xFF2D3748);
-const Color iconColor = Color(0xFF718096);
-const Color primaryColor = Color(0xFFF6A61F);
 
 class MainScreen extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -36,9 +34,7 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _widgetOptions = <Widget>[
       HomeTab(loginResponse: widget.loginResponse),
-      // --- CORREÇÃO APLICADA AQUI ---
-      // Adicionando o parâmetro que estava faltando
-      MyEventsTab(loginResponse: widget.loginResponse), 
+      MyEventsTab(loginResponse: widget.loginResponse),
       ProfileTab(loginResponse: widget.loginResponse),
     ];
   }
@@ -62,12 +58,23 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userFirstName =
-        widget.loginResponse['user']?['firstName'] ?? 'Usuário';
+    final userFirstName = widget.loginResponse['user']?['firstName'] ?? 'Usuário';
+    
+    String appBarTitle;
+    switch (_selectedIndex) {
+      case 1:
+        appBarTitle = 'Informações do seu rolê';
+        break;
+      case 2:
+        appBarTitle = 'Meu Perfil';
+        break;
+      default:
+        appBarTitle = 'Olá, $userFirstName';
+    }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Olá, $userFirstName'),
+        title: Text(appBarTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
@@ -76,30 +83,17 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
-      ),
+      // --- CORREÇÃO PRINCIPAL APLICADA AQUI ---
+      // O widget Center foi removido para permitir que a lista se expanda corretamente.
+      body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Início',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.celebration_outlined),
-            activeIcon: Icon(Icons.celebration),
-            label: 'Meu Evento',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Início'),
+          BottomNavigationBarItem(icon: Icon(Icons.celebration), label: 'Meu Evento'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor:
-            const Color(0xFFd74533), // Cor primária para o item ativo
+        selectedItemColor: const Color(0xFFd74533),
         onTap: _onItemTapped,
       ),
     );

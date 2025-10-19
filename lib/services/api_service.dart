@@ -5,6 +5,7 @@ import 'dart:io' show File, Platform;
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:mime/mime.dart';
+import 'package:wtg_front/models/promotion_type.dart';
 
 class ApiService {
   final String _baseUrl = _getBaseUrl();
@@ -149,7 +150,7 @@ class ApiService {
   
   // O restante dos seus métodos (login, register, etc.) continuam aqui...
 
-  Future<Map<String, dynamic>> login({
+Future<Map<String, dynamic>> login({
     required String email,
     required String password,
     double? latitude,
@@ -169,9 +170,13 @@ class ApiService {
     );
 
     if (response.statusCode == 200) {
+      // Decodifica a resposta JSON
       final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+      
+      // Extrai o cookie do cabeçalho da resposta
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null) {
+        // Adiciona o cookie aos dados que serão retornados para a UI
         responseData['cookie'] = rawCookie;
       }
       return responseData;
@@ -180,7 +185,6 @@ class ApiService {
       throw Exception(errorBody['error'] ?? 'Falha no login');
     }
   }
-  ////////////////////////////////////////////////////////////////////////
 
   // --- MÉTODO ADICIONADO (PLACEHOLDER) ---
   /// Converte um endereço em coordenadas geográficas.
@@ -376,29 +380,47 @@ class ApiService {
     }
   }
 
-  Future<List<dynamic>> filterPromotions({
-    required double latitude,
-    required double longitude,
-    double radius = 5.0,
+Future<List<dynamic>> filterPromotions({
+    required String cookie,
+    double? latitude,
+    double? longitude,
+    double? radius,
+    PromotionType? promotionType,
   }) async {
-    final uri =
-        Uri.parse('$_baseUrl/promotions/filter').replace(queryParameters: {
-      'latitude': latitude.toString(),
-      'longitude': longitude.toString(),
-      'radius': radius.toString(),
-    });
+    final queryParameters = <String, String>{};
+
+    // CORREÇÃO: Agrupa os parâmetros de localização.
+    // Só envia o raio se a latitude e longitude também estiverem disponíveis.
+    if (latitude != null && longitude != null && radius != null) {
+      queryParameters['latitude'] = latitude.toString();
+      queryParameters['longitude'] = longitude.toString();
+      queryParameters['radius'] = radius.toString();
+    }
+
+    // O filtro de tipo de promoção é independente.
+    if (promotionType != null) {
+      queryParameters['promotionType'] = promotionType.name.toUpperCase();
+    }
+
+    final uri = Uri.parse('$_baseUrl/promotions/filter').replace(
+      queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
+    );
+
+    print('Enviando requisição para: $uri'); // Adicionado para debug
 
     final response = await http.get(
       uri,
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
       },
     );
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      throw Exception('Falha ao buscar promoções');
+      // Lança um erro mais detalhado para ajudar no debug
+      throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
 }
