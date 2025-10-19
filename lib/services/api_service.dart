@@ -270,7 +270,12 @@ class ApiService {
     print('Resposta do registo final: ${response.statusCode}');
 
     if (response.statusCode == 201) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
+      final responseData = jsonDecode(utf8.decode(response.bodyBytes));
+      String? rawCookie = response.headers['set-cookie'];
+      if (rawCookie != null) {
+        responseData['cookie'] = rawCookie;
+      }
+      return responseData;
     } else {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
       String errorMessage =

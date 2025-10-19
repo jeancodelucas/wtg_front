@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // Importe a tela
 import 'package:wtg_front/screens/main_screen.dart';
+// lib/screens/registration_success_screen.dart
+// lib/screens/registration_success_screen.dart
 
 
 // Cores

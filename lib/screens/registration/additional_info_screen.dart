@@ -1,17 +1,20 @@
+// lib/screens/registration/additional_info_screen.dart
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import do SharedPreferences
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'dart:io' show Platform;
 
-// Cores
 const Color primaryButtonColor = Color(0xFFd74533);
+const Color primaryColor = Color(0xFF214886);
+const Color lightTextColor = Color(0xFF002956);
 const Color darkTextColor = Color(0xFF002956);
-const Color placeholderColor = Color(0xFFE0E0E0);
+const Color fieldBackgroundColor = Color(0xFFF9FAFB);
 
-// Cores do Breadcrumb
 const Color verificationStepColor = Color(0xFF214886);
 const Color passwordStepColor = Color(0xFFec9b28);
 const Color infoStepColor = Color(0xFFd74533);
@@ -37,7 +40,13 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   String? _selectedPronoun;
   bool _isLoading = false;
 
-  final List<String> _pronouns = ['Ele/Dele', 'Ela/Dela', 'Elu/Delu', 'Outro', 'Prefiro não dizer'];
+  final List<String> _pronouns = [
+    'Ele/Dele',
+    'Ela/Dela',
+    'Elu/Delu',
+    'Outro',
+    'Prefiro não dizer'
+  ];
 
   @override
   void dispose() {
@@ -54,7 +63,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     if (numbers.length != 11) return 'CPF inválido (deve conter 11 dígitos).';
     if (RegExp(r'^(\d)\1*$').hasMatch(numbers)) return 'CPF inválido.';
 
-    List<int> digits = numbers.runes.map((r) => int.parse(String.fromCharCode(r))).toList();
+    List<int> digits =
+        numbers.runes.map((r) => int.parse(String.fromCharCode(r))).toList();
     int calc(int end) {
       int sum = 0;
       for (int i = 0; i < end; i++) {
@@ -109,7 +119,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                 mode: CupertinoDatePickerMode.date,
                 onDateTimeChanged: (picked) {
                   setState(() {
-                    _birthdayController.text = DateFormat('dd/MM/yyyy').format(picked);
+                    _birthdayController.text =
+                        DateFormat('dd/MM/yyyy').format(picked);
                   });
                 },
               ),
@@ -134,7 +145,9 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   }
 
   void _showIOSPronounPicker() {
-    final initialIndex = _selectedPronoun != null ? _pronouns.indexOf(_selectedPronoun!) : 0;
+    final initialIndex =
+        _selectedPronoun != null ? _pronouns.indexOf(_selectedPronoun!) : 0;
+
     showCupertinoModalPopup(
       context: context,
       builder: (_) => Container(
@@ -145,7 +158,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             SizedBox(
               height: 200,
               child: CupertinoPicker(
-                scrollController: FixedExtentScrollController(initialItem: initialIndex),
+                scrollController:
+                    FixedExtentScrollController(initialItem: initialIndex),
                 itemExtent: 32.0,
                 onSelectedItemChanged: (index) {
                   setState(() {
@@ -153,7 +167,9 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                     _pronounController.text = _pronouns[index];
                   });
                 },
-                children: _pronouns.map((pronoun) => Center(child: Text(pronoun))).toList(),
+                children: _pronouns
+                    .map((pronoun) => Center(child: Text(pronoun)))
+                    .toList(),
               ),
             ),
             CupertinoButton(
@@ -208,21 +224,27 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
+
       String birthdateToSend = '';
       if (_birthdayController.text.isNotEmpty) {
         try {
-          DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(_birthdayController.text);
+          DateTime parsedDate =
+              DateFormat('dd/MM/yyyy').parse(_birthdayController.text);
           birthdateToSend = DateFormat('yyyy-MM-dd').format(parsedDate);
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Formato de data inválido.')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Formato de data inválido.')),
+            );
             setState(() => _isLoading = false);
             return;
           }
         }
       }
+
       final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
       Map<String, dynamic>? apiResponse;
+
       try {
         if (isSsoUser) {
           final userUpdateData = {
@@ -231,27 +253,49 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             "birthday": birthdateToSend,
             "pronouns": _selectedPronoun,
           };
+
           final cookie = widget.registrationData['cookie'] as String?;
-          if (cookie == null) throw Exception("Sessão de autenticação não encontrada para usuário SSO.");
+          if (cookie == null) {
+            throw Exception(
+                "Sessão de autenticação não encontrada para usuário SSO.");
+          }
+
           apiResponse = await _apiService.updateUser(userUpdateData, cookie);
         } else {
-          widget.registrationData['userName'] = widget.registrationData['email'];
+          widget.registrationData['userName'] =
+              widget.registrationData['email'];
           widget.registrationData['firstName'] = _nicknameController.text;
           widget.registrationData['fullName'] = _nicknameController.text;
-          widget.registrationData['cpf'] = _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
+          widget.registrationData['cpf'] =
+              _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
           widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
           apiResponse = await _apiService.register(widget.registrationData);
         }
+
         if (mounted && apiResponse != null) {
+          // --- CORREÇÃO APLICADA AQUI ---
+          final cookie = apiResponse['cookie'] as String?;
+          if (cookie != null) {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('session_cookie', cookie);
+          }
+          // --- FIM DA CORREÇÃO ---
+
           Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (context) => RegistrationSuccessScreen(userData: apiResponse!)),
+            MaterialPageRoute(
+                builder: (context) =>
+                    RegistrationSuccessScreen(userData: apiResponse!)),
             (route) => false,
           );
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: ${e.toString().replaceAll("Exception: ", "")}')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(
+                    'Erro: ${e.toString().replaceAll("Exception: ", "")}')),
+          );
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -279,23 +323,34 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildBreadcrumbs(),
+                _buildBreadcrumbs(currentStep: 3),
                 const SizedBox(height: 32),
-                const Text('Queremos te conhecer!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: darkTextColor)),
+                const Text(
+                  'Queremos te conhecer!',
+                  style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: darkTextColor),
+                ),
                 const SizedBox(height: 8),
-                const Text('Conta um pouco mais sobre tu', style: TextStyle(fontSize: 16, color: infoStepColor)),
+                const Text('Conta um pouco mais sobre tu',
+                    style: TextStyle(fontSize: 16, color: passwordStepColor)),
                 const SizedBox(height: 40),
                 _buildTextField(
                   controller: _nicknameController,
                   label: 'Como você quer ser chamado? *',
-                  validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo obrigatório' : null,
                 ),
                 const SizedBox(height: 24),
                 _buildTextField(
                   controller: _cpfController,
                   label: 'Qual seu CPF? *',
                   keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly, CpfInputFormatter()],
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    CpfInputFormatter()
+                  ],
                   validator: _validateCpf,
                 ),
                 const SizedBox(height: 24),
@@ -304,8 +359,10 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                   label: 'Preencha sua data de nascimento *',
                   readOnly: true,
                   onTap: () => _selectDate(context),
-                  suffixIcon: const Icon(Icons.calendar_today_outlined, color: darkTextColor),
-                  validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+                  suffixIcon: const Icon(Icons.calendar_today_outlined,
+                      color: lightTextColor),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo obrigatório' : null,
                 ),
                 const SizedBox(height: 24),
                 _buildTextField(
@@ -313,11 +370,14 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                   label: 'Qual seu pronome? *',
                   readOnly: true,
                   onTap: _selectPronoun,
-                  suffixIcon: const Icon(Icons.arrow_drop_down, color: darkTextColor),
-                  validator: (value) => value!.isEmpty ? 'Campo obrigatório' : null,
+                  suffixIcon:
+                      const Icon(Icons.arrow_drop_down, color: lightTextColor),
+                  validator: (value) =>
+                      value!.isEmpty ? 'Campo obrigatório' : null,
                 ),
                 const SizedBox(height: 40),
-                _buildPrimaryButton('Finalizar cadastro', _submitFinalRegistration, _isLoading, false),
+                _buildPrimaryButton('Finalizar cadastro',
+                    _submitFinalRegistration, _isLoading, false),
                 const SizedBox(height: 20),
               ],
             ),
@@ -327,7 +387,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
-  // --- WIDGET DE INPUT PADRONIZADO ---
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -341,7 +400,9 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor, fontSize: 16)),
+        Text(label,
+            style: const TextStyle(
+                fontWeight: FontWeight.bold, color: darkTextColor)),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -352,10 +413,11 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           onTap: onTap,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: infoStepColor, width: 2)),
+            fillColor: fieldBackgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
             suffixIcon: suffixIcon,
           ),
         ),
@@ -363,29 +425,68 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
-  Widget _buildBreadcrumbs() {
-    const int currentStep = 3;
+  Widget _buildBreadcrumbs({required int currentStep}) {
     return Row(
       children: [
-        _buildStepIndicator(step: 1, currentStep: currentStep, icon: Icons.mark_email_read_outlined, activeColor: verificationStepColor),
+        _buildStep(
+          icon: Icons.mark_email_read_outlined,
+          label: 'Verificação',
+          stepColor: verificationStepColor,
+          isComplete: currentStep > 1,
+          isActive: currentStep == 1,
+        ),
         _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
-        _buildStepIndicator(step: 2, currentStep: currentStep, icon: Icons.lock_outline, activeColor: passwordStepColor),
+        _buildStep(
+          icon: Icons.lock_outline,
+          label: 'Senha',
+          stepColor: passwordStepColor,
+          isComplete: currentStep > 2,
+          isActive: currentStep == 2,
+        ),
         _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
-        _buildStepIndicator(step: 3, currentStep: currentStep, icon: Icons.person_outline, activeColor: infoStepColor),
+        _buildStep(
+          icon: Icons.person_outline,
+          label: 'Dados',
+          stepColor: infoStepColor,
+          isComplete: false,
+          isActive: currentStep == 3,
+        ),
       ],
     );
   }
 
-  Widget _buildStepIndicator({required int step, required int currentStep, required IconData icon, required Color activeColor}) {
-    final bool isActive = step == currentStep;
-    final bool isComplete = step < currentStep;
-    final Color color = isActive || isComplete ? activeColor : Colors.grey[400]!;
+  Widget _buildStep(
+      {required IconData icon,
+      required String label,
+      required Color stepColor,
+      required bool isActive,
+      required bool isComplete}) {
+    final color = isActive || isComplete ? stepColor : Colors.grey[400];
 
     return Column(
       children: [
-        Icon(icon, color: color, size: 28),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isActive || isComplete ? stepColor : Colors.transparent,
+            shape: BoxShape.circle,
+            border: Border.all(color: color!, width: 2),
+          ),
+          child: Icon(
+            icon,
+            color: isActive || isComplete ? Colors.white : Colors.grey[400],
+            size: 22,
+          ),
+        ),
         const SizedBox(height: 8),
-        Text(step.toString(), style: TextStyle(color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+        Text(label,
+            style: TextStyle(
+                color: darkTextColor,
+                fontSize: 12,
+                fontWeight: isActive || isComplete
+                    ? FontWeight.bold
+                    : FontWeight.normal)),
       ],
     );
   }
@@ -394,14 +495,15 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.only(bottom: 32, left: 4, right: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 8.0),
         color: isComplete ? color : Colors.grey[300],
       ),
     );
   }
 }
 
-Widget _buildPrimaryButton(String text, VoidCallback onPressed, bool isLoading, bool showArrow) {
+Widget _buildPrimaryButton(
+    String text, VoidCallback onPressed, bool isLoading, bool showArrow) {
   return ElevatedButton(
     onPressed: isLoading ? null : onPressed,
     style: ElevatedButton.styleFrom(
@@ -413,11 +515,17 @@ Widget _buildPrimaryButton(String text, VoidCallback onPressed, bool isLoading, 
       elevation: 0,
     ),
     child: isLoading
-        ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+        ? const SizedBox(
+            height: 24,
+            width: 24,
+            child:
+                CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(text,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.bold)),
               if (showArrow) const SizedBox(width: 8),
               if (showArrow) const Icon(Icons.arrow_forward),
             ],
@@ -427,7 +535,8 @@ Widget _buildPrimaryButton(String text, VoidCallback onPressed, bool isLoading, 
 
 class CpfInputFormatter extends TextInputFormatter {
   @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
     final newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (newText.length > 11) return oldValue;
     var formattedText = '';
