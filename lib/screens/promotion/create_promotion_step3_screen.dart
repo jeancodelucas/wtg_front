@@ -61,7 +61,7 @@ class _CreatePromotionStep3ScreenState
       "latitude": coordinates.latitude,
       "longitude": coordinates.longitude,
       "address": addressData,
-      "free": isFree, // Adiciona o campo 'free' ao payload
+      "free": isFree,
     };
 
     // 3. Adiciona 'ticketValue' APENAS se a promoção NÃO for gratuita
