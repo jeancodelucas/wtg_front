@@ -4,20 +4,23 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // Import do SharedPreferences
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'dart:io' show Platform;
 
-const Color primaryButtonColor = Color(0xFFd74533);
-const Color primaryColor = Color(0xFF214886);
-const Color lightTextColor = Color(0xFF002956);
-const Color darkTextColor = Color(0xFF002956);
-const Color fieldBackgroundColor = Color(0xFFF9FAFB);
+// --- PALETA DE CORES (ESCURA E VIBRANTE) ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
 
-const Color verificationStepColor = Color(0xFF214886);
-const Color passwordStepColor = Color(0xFFec9b28);
-const Color infoStepColor = Color(0xFFd74533);
+// Cores dos ícones e etapas do Breadcrumb
+const Color verificationStepColor = Color(0xFF4299E1);
+const Color passwordStepColor = Color(0xFFF6AD55);
+const Color infoStepColor = Color(0xFFF56565);
 
 class AdditionalInfoScreen extends StatefulWidget {
   final Map<String, dynamic> registrationData;
@@ -56,6 +59,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     _pronounController.dispose();
     super.dispose();
   }
+
+  // --- TODA A LÓGICA DE FUNCIONALIDADE PERMANECE INALTERADA ---
 
   String? _validateCpf(String? cpf) {
     if (cpf == null || cpf.isEmpty) return 'CPF é obrigatório.';
@@ -274,13 +279,11 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
         }
 
         if (mounted && apiResponse != null) {
-          // --- CORREÇÃO APLICADA AQUI ---
           final cookie = apiResponse['cookie'] as String?;
           if (cookie != null) {
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('session_cookie', cookie);
           }
-          // --- FIM DA CORREÇÃO ---
 
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -303,191 +306,174 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: darkTextColor),
+          icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          _buildBreadcrumbs(),
+          const SizedBox(width: 16)
+        ],
       ),
-      backgroundColor: Colors.white,
+      backgroundColor: darkBackgroundColor,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildBreadcrumbs(currentStep: 3),
-                const SizedBox(height: 32),
-                const Text(
-                  'Queremos te conhecer!',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: darkTextColor),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: constraints.maxHeight,
                 ),
-                const SizedBox(height: 8),
-                const Text('Conta um pouco mais sobre tu',
-                    style: TextStyle(fontSize: 16, color: passwordStepColor)),
-                const SizedBox(height: 40),
-                _buildTextField(
-                  controller: _nicknameController,
-                  label: 'Como você quer ser chamado? *',
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo obrigatório' : null,
+                child: IntrinsicHeight(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Queremos te conhecer!',
+                          style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: primaryTextColor),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Conte um pouco mais sobre você para uma experiência completa.',
+                          style: TextStyle(fontSize: 16, color: secondaryTextColor),
+                        ),
+                        const SizedBox(height: 32),
+                        _buildTextField(
+                          controller: _nicknameController,
+                          label: 'Como você quer ser chamado? *',
+                          icon: Icons.person_outline,
+                          iconColor: infoStepColor,
+                          validator: (value) =>
+                              value!.isEmpty ? 'Campo obrigatório' : null,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildTextField(
+                          controller: _cpfController,
+                          label: 'Qual seu CPF? *',
+                          icon: Icons.badge_outlined,
+                          iconColor: infoStepColor,
+                          tooltipMessage: 'Essa informação é necessária para validarmos você como pessoa!',
+                          keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            CpfInputFormatter()
+                          ],
+                          validator: _validateCpf,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildTextField(
+                          controller: _birthdayController,
+                          label: 'Sua data de nascimento *',
+                          icon: Icons.calendar_today_outlined,
+                          iconColor: infoStepColor,
+                          readOnly: true,
+                          onTap: () => _selectDate(context),
+                          validator: (value) =>
+                              value!.isEmpty ? 'Campo obrigatório' : null,
+                        ),
+                        const SizedBox(height: 20),
+                        _buildTextField(
+                          controller: _pronounController,
+                          label: 'Qual seu pronome? *',
+                          icon: Icons.wc_outlined,
+                          iconColor: infoStepColor,
+                          tooltipMessage: 'Para que possamos nos dirigir a você de forma correta, por favor nos diga como gostaria de ser chamado!',
+                          readOnly: true,
+                          onTap: _selectPronoun,
+                          validator: (value) =>
+                              value!.isEmpty ? 'Campo obrigatório' : null,
+                        ),
+                        const Spacer(), // Ocupa o espaço restante
+                        const SizedBox(height: 24),
+                        _buildPrimaryButton(
+                          'Finalizar cadastro',
+                          _submitFinalRegistration,
+                          _isLoading,
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  controller: _cpfController,
-                  label: 'Qual seu CPF? *',
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
-                    CpfInputFormatter()
-                  ],
-                  validator: _validateCpf,
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  controller: _birthdayController,
-                  label: 'Preencha sua data de nascimento *',
-                  readOnly: true,
-                  onTap: () => _selectDate(context),
-                  suffixIcon: const Icon(Icons.calendar_today_outlined,
-                      color: lightTextColor),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo obrigatório' : null,
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(
-                  controller: _pronounController,
-                  label: 'Qual seu pronome? *',
-                  readOnly: true,
-                  onTap: _selectPronoun,
-                  suffixIcon:
-                      const Icon(Icons.arrow_drop_down, color: lightTextColor),
-                  validator: (value) =>
-                      value!.isEmpty ? 'Campo obrigatório' : null,
-                ),
-                const SizedBox(height: 40),
-                _buildPrimaryButton('Finalizar cadastro',
-                    _submitFinalRegistration, _isLoading, false),
-                const SizedBox(height: 20),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         ),
       ),
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    String? Function(String?)? validator,
-    bool readOnly = false,
-    VoidCallback? onTap,
-    Widget? suffixIcon,
+  Widget _buildBreadcrumbs() {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width * 0.4, // Ocupa 40% da tela
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _buildStep(
+            icon: Icons.mark_email_read_outlined,
+            stepColor: verificationStepColor,
+            isComplete: true,
+          ),
+          _buildConnector(isComplete: true, color: passwordStepColor),
+          _buildStep(
+            icon: Icons.lock_open_outlined,
+            stepColor: passwordStepColor,
+            isComplete: true,
+          ),
+          _buildConnector(isComplete: true, color: infoStepColor),
+          _buildStep(
+            icon: Icons.person_add_alt_1_outlined,
+            stepColor: infoStepColor,
+            isActive: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep({
+    required IconData icon,
+    required Color stepColor,
+    bool isActive = false,
+    bool isComplete = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: const TextStyle(
-                fontWeight: FontWeight.bold, color: darkTextColor)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          validator: validator,
-          readOnly: readOnly,
-          onTap: onTap,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: fieldBackgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-            suffixIcon: suffixIcon,
-          ),
-        ),
-      ],
-    );
-  }
+    final double iconSize = isActive ? 28.0 : 22.0;
+    final double containerSize = isActive ? 48.0 : 40.0;
+    final Color iconColor = isComplete
+        ? stepColor.withOpacity(0.4) // Mais esmaecido
+        : (isActive ? Colors.white : secondaryTextColor.withOpacity(0.7));
 
-  Widget _buildBreadcrumbs({required int currentStep}) {
-    return Row(
-      children: [
-        _buildStep(
-          icon: Icons.mark_email_read_outlined,
-          label: 'Verificação',
-          stepColor: verificationStepColor,
-          isComplete: currentStep > 1,
-          isActive: currentStep == 1,
+    return Container(
+      width: containerSize,
+      height: containerSize,
+      decoration: BoxDecoration(
+        color: isActive ? stepColor : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isComplete
+              ? stepColor.withOpacity(0.4) // Borda também esmaecida
+              : (isActive ? stepColor : fieldBorderColor),
+          width: 2,
         ),
-        _buildConnector(isComplete: currentStep > 1, color: passwordStepColor),
-        _buildStep(
-          icon: Icons.lock_outline,
-          label: 'Senha',
-          stepColor: passwordStepColor,
-          isComplete: currentStep > 2,
-          isActive: currentStep == 2,
-        ),
-        _buildConnector(isComplete: currentStep > 2, color: infoStepColor),
-        _buildStep(
-          icon: Icons.person_outline,
-          label: 'Dados',
-          stepColor: infoStepColor,
-          isComplete: false,
-          isActive: currentStep == 3,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStep(
-      {required IconData icon,
-      required String label,
-      required Color stepColor,
-      required bool isActive,
-      required bool isComplete}) {
-    final color = isActive || isComplete ? stepColor : Colors.grey[400];
-
-    return Column(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: isActive || isComplete ? stepColor : Colors.transparent,
-            shape: BoxShape.circle,
-            border: Border.all(color: color!, width: 2),
-          ),
-          child: Icon(
-            icon,
-            color: isActive || isComplete ? Colors.white : Colors.grey[400],
-            size: 22,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(label,
-            style: TextStyle(
-                color: darkTextColor,
-                fontSize: 12,
-                fontWeight: isActive || isComplete
-                    ? FontWeight.bold
-                    : FontWeight.normal)),
-      ],
+      ),
+      child: Center(
+        child: Icon(icon, color: iconColor, size: iconSize),
+      ),
     );
   }
 
@@ -495,24 +481,120 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.symmetric(horizontal: 8.0),
-        color: isComplete ? color : Colors.grey[300],
+        color: isComplete ? color.withOpacity(0.4) : fieldBorderColor,
       ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required Color iconColor,
+    String? tooltipMessage,
+    TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
+    String? Function(String?)? validator,
+    bool readOnly = false,
+    VoidCallback? onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: secondaryTextColor,
+                fontSize: 16.5, // LABEL UM POUCO MAIOR
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (tooltipMessage != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 8.0),
+                child: Tooltip(
+                  message: tooltipMessage,
+                  child: const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: secondaryTextColor,
+                  ),
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: fieldBackgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: fieldBorderColor)
+                  ),
+                  textStyle: const TextStyle(color: primaryTextColor),
+                  triggerMode: TooltipTriggerMode.tap,
+                  preferBelow: false,
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          validator: validator,
+          readOnly: readOnly,
+          onTap: onTap,
+          style: const TextStyle(
+              color: primaryTextColor, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: iconColor, size: 22),
+            suffixIcon: (readOnly && onTap != null)
+                ? const Icon(Icons.arrow_drop_down, color: secondaryTextColor)
+                : null,
+            filled: true,
+            fillColor: fieldBackgroundColor,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: fieldBorderColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: fieldBorderColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: iconColor, width: 2),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
 Widget _buildPrimaryButton(
-    String text, VoidCallback onPressed, bool isLoading, bool showArrow) {
+    String text, VoidCallback onPressed, bool isLoading) {
   return ElevatedButton(
     onPressed: isLoading ? null : onPressed,
     style: ElevatedButton.styleFrom(
       backgroundColor: primaryButtonColor,
       foregroundColor: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      minimumSize: const Size(double.infinity, 50),
-      elevation: 0,
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8)),
+      minimumSize: const Size(double.infinity, 64),
+      elevation: 3,
+      shadowColor: primaryButtonColor.withOpacity(0.5),
     ),
     child: isLoading
         ? const SizedBox(
@@ -520,15 +602,12 @@ Widget _buildPrimaryButton(
             width: 24,
             child:
                 CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
-        : Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(text,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold)),
-              if (showArrow) const SizedBox(width: 8),
-              if (showArrow) const Icon(Icons.arrow_forward),
-            ],
+        : Text(
+            text,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
           ),
   );
 }
