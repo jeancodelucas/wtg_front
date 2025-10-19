@@ -35,17 +35,20 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
   final _apiService = ApiService();
   final _locationService = LocationService();
   bool _isLoading = false;
+  bool _isFetchingCep = false; // Estado para o loading do CEP
 
-  // Controladores e FocusNode para o CEP
+  // Controladores e FocusNode
   final _cepController = TextEditingController();
   final _cepFocusNode = FocusNode();
   final _ufController = TextEditingController();
   final _logradouroController = TextEditingController();
+  final _neighborhoodController = TextEditingController(); // NOVO CONTROLLER
   final _cidadeController = TextEditingController();
   final _numeroController = TextEditingController();
-  final _complementoController = TextEditingController(); // Controller adicionado
+  final _complementoController = TextEditingController();
   final _pontoReferenciaController = TextEditingController();
   final _observacoesController = TextEditingController();
+  final _numeroFocusNode = FocusNode();
 
   // Variáveis de estado para o mapa
   GoogleMapController? _mapController;
@@ -57,6 +60,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
   void initState() {
     super.initState();
     _fetchCurrentUserLocation();
+    // Listener para buscar o CEP quando o foco sair do campo
     _cepFocusNode.addListener(() {
       if (!_cepFocusNode.hasFocus) {
         _fetchAddressFromCep();
@@ -70,11 +74,13 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     _cepFocusNode.dispose();
     _ufController.dispose();
     _logradouroController.dispose();
+    _neighborhoodController.dispose();
     _cidadeController.dispose();
     _numeroController.dispose();
     _complementoController.dispose();
     _pontoReferenciaController.dispose();
     _observacoesController.dispose();
+    _numeroFocusNode.dispose();
     _mapController?.dispose();
     super.dispose();
   }
@@ -85,18 +91,16 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     if (position != null) {
       _updateMapLocation(LatLng(position.latitude, position.longitude));
     } else {
-      // Fallback para uma localização padrão se a do usuário falhar
       _updateMapLocation(const LatLng(-8.057838, -34.870639));
     }
     setState(() => _mapIsLoading = false);
   }
 
   Future<void> _fetchAddressFromCep() async {
-    FocusScope.of(context).unfocus();
     final cep = _cepController.text.replaceAll(RegExp(r'[^0-9]'), '');
     if (cep.length != 8) return;
 
-    setState(() => _isLoading = true);
+    setState(() => _isFetchingCep = true);
     try {
       final uri = Uri.parse('https://viacep.com.br/ws/$cep/json/');
       final response = await http.get(uri);
@@ -104,9 +108,15 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
         final data = jsonDecode(response.body);
         if (data['erro'] == true) throw Exception('CEP não encontrado.');
         
-        _logradouroController.text = data['logradouro'] ?? '';
-        _cidadeController.text = data['localidade'] ?? '';
-        _ufController.text = data['uf'] ?? '';
+        setState(() {
+          _logradouroController.text = data['logradouro'] ?? '';
+          _neighborhoodController.text = data['bairro'] ?? ''; // Preenche o Bairro
+          _cidadeController.text = data['localidade'] ?? '';
+          _ufController.text = data['uf'] ?? '';
+        });
+        
+        // Move o foco para o campo de número para o usuário preencher
+        FocusScope.of(context).requestFocus(_numeroFocusNode);
         await _geocodeAndCenterMap();
       } else {
         throw Exception('Não foi possível buscar o CEP.');
@@ -114,7 +124,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isFetchingCep = false);
     }
   }
   
@@ -129,7 +139,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
           CameraUpdate.newLatLngZoom(newLatLng, 16),
         );
       }
-    } catch (e) { /* Ignora erro */ }
+    } catch (e) { /* Ignora erro se o geocoding falhar */ }
   }
 
   void _updateMapLocation(LatLng latLng) {
@@ -159,10 +169,11 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
       'addressData': {
         "address": _logradouroController.text,
         "number": int.tryParse(_numeroController.text) ?? 0,
+        "complement": _complementoController.text,
+        "neighborhood": _neighborhoodController.text, // NOVO CAMPO ADICIONADO
         "postalCode": _cepController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         "reference": _pontoReferenciaController.text,
         "obs": _observacoesController.text,
-        "complement": _complementoController.text, // Campo adicionado
       },
       'coordinates': _currentLatLng,
     };
@@ -200,26 +211,40 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
                 _buildInteractiveMap(),
                 const SizedBox(height: 32),
 
-                // --- NOVO LAYOUT DOS INPUTS ---
+                // --- LAYOUT DOS INPUTS COM BAIRRO ---
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(flex: 3, child: _buildTextField(label: 'CEP', controller: _cepController, keyboardType: TextInputType.number, focusNode: _cepFocusNode)),
+                    Expanded(
+                      flex: 3, 
+                      child: _buildTextField(
+                        label: 'CEP', 
+                        controller: _cepController, 
+                        keyboardType: TextInputType.number, 
+                        focusNode: _cepFocusNode,
+                        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
+                        suffixIcon: _isFetchingCep ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))) : null,
+                      )
+                    ),
                     const SizedBox(width: 16),
-                    Expanded(flex: 2, child: _buildTextField(label: 'UF', controller: _ufController, inputFormatters: [LengthLimitingTextInputFormatter(2)])),
+                    Expanded(flex: 2, child: _buildTextField(label: 'UF', controller: _ufController, inputFormatters: [LengthLimitingTextInputFormatter(2)], validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
                   ],
                 ),
                 const SizedBox(height: 24),
                 
-                _buildTextField(label: 'Logradouro', controller: _logradouroController),
+                _buildTextField(label: 'Logradouro', controller: _logradouroController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                const SizedBox(height: 24),
+
+                // NOVO CAMPO DE BAIRRO
+                _buildTextField(label: 'Bairro', controller: _neighborhoodController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
                 const SizedBox(height: 24),
 
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 100, child: _buildTextField(label: 'Número', controller: _numeroController, keyboardType: TextInputType.number, inputFormatters: [LengthLimitingTextInputFormatter(5)])),
+                    SizedBox(width: 100, child: _buildTextField(label: 'Número', controller: _numeroController, focusNode: _numeroFocusNode, keyboardType: TextInputType.number, inputFormatters: [LengthLimitingTextInputFormatter(5)], validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildTextField(label: 'Cidade', controller: _cidadeController)),
+                    Expanded(child: _buildTextField(label: 'Cidade', controller: _cidadeController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -320,7 +345,7 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     );
   }
 
-  Widget _buildTextField({required String label, required TextEditingController controller, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters, FocusNode? focusNode, bool isOptional = false, int maxLines = 1}) {
+  Widget _buildTextField({required String label, required TextEditingController controller, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters, FocusNode? focusNode, bool isOptional = false, int maxLines = 1, String? Function(String?)? validator, Widget? suffixIcon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -332,13 +357,14 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
           keyboardType: keyboardType,
           inputFormatters: inputFormatters,
           maxLines: maxLines,
-          validator: (value) {
+          validator: validator ?? (value) {
             if (!isOptional && (value == null || value.isEmpty)) {
               return 'Campo obrigatório';
             }
             return null;
           },
           decoration: InputDecoration(
+            suffixIcon: suffixIcon,
             filled: true,
             fillColor: textFieldBackgroundColor,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),

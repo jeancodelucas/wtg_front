@@ -19,6 +19,53 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> createPromotion(
+      Map<String, dynamic> promotionData, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions');
+    print('Enviando requisição para criar promoção: $uri');
+
+    // Cria uma cópia do mapa para poder modificá-lo com segurança
+    final Map<String, dynamic> payload = Map.from(promotionData);
+
+    // --- CORREÇÃO APLICADA AQUI ---
+    // Verifica se 'promotionType' é um enum e o converte para String (ex: "PARTY")
+    if (payload['promotionType'] is PromotionType) {
+      payload['promotionType'] = (payload['promotionType'] as PromotionType).name;
+    }
+    
+    // Remove dados que não são enviados para a API no passo 3
+    payload.remove('images');
+    payload.remove('loginResponse');
+    payload.remove('addressData');
+    payload.remove('coordinates');
+
+
+    print('Payload final: ${jsonEncode(payload)}');
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+      body: jsonEncode(payload),
+    );
+
+    print('Resposta da criação de promoção: ${response.statusCode}');
+    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
+    if (response.statusCode == 201) {
+      return responseBody;
+    } else {
+      if (responseBody['messages'] != null) {
+        throw Exception('Erro de validação: ${responseBody['messages']}');
+      }
+      throw Exception(responseBody['message'] ?? 'Falha ao criar o evento.');
+    }
+  }
+
+  // O restante dos seus métodos (login, register, filterPromotions, etc.) continuam aqui...
+  
   Future<Map<String, dynamic>> completePromotionRegistration(String promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/complete');
     print('Finalizando cadastro da promoção: $uri');
@@ -86,36 +133,6 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> createPromotion(
-      Map<String, dynamic> promotionData, String cookie) async {
-    final uri = Uri.parse('$_baseUrl/promotions');
-    print('Enviando requisição para criar promoção: $uri');
-    print('Payload: ${jsonEncode(promotionData)}');
-
-    final response = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Cookie': cookie,
-      },
-      body: jsonEncode(promotionData),
-    );
-
-    print('Resposta da criação de promoção: ${response.statusCode}');
-    final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
-
-    if (response.statusCode == 201) {
-      return responseBody;
-    } else {
-      // Tenta extrair mensagens de erro de validação, se existirem
-      if (responseBody['messages'] != null) {
-        throw Exception('Erro de validação: ${responseBody['messages']}');
-      }
-      throw Exception(responseBody['message'] ?? 'Falha ao criar o evento.');
-    }
-  }
-
-  /// Faz o upload de uma ou mais imagens para uma promoção existente
   Future<void> uploadPromotionImages(String promotionId, List<File> images, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/images');
     print('Enviando imagens para: $uri');
@@ -148,9 +165,7 @@ class ApiService {
     }
   }
   
-  // O restante dos seus métodos (login, register, etc.) continuam aqui...
-
-Future<Map<String, dynamic>> login({
+  Future<Map<String, dynamic>> login({
     required String email,
     required String password,
     double? latitude,
@@ -170,13 +185,10 @@ Future<Map<String, dynamic>> login({
     );
 
     if (response.statusCode == 200) {
-      // Decodifica a resposta JSON
       final responseData = jsonDecode(utf8.decode(response.bodyBytes));
       
-      // Extrai o cookie do cabeçalho da resposta
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null) {
-        // Adiciona o cookie aos dados que serão retornados para a UI
         responseData['cookie'] = rawCookie;
       }
       return responseData;
@@ -186,23 +198,15 @@ Future<Map<String, dynamic>> login({
     }
   }
 
-  // --- MÉTODO ADICIONADO (PLACEHOLDER) ---
-  /// Converte um endereço em coordenadas geográficas.
-  /// TODO: Substituir pela implementação real com um serviço de geocodificação (ex: Google Geocoding API).
   Future<Map<String, double>> getCoordinatesFromAddress(Map<String, String> addressData) async {
     print('Buscando coordenadas para o endereço (função de placeholder): $addressData');
-    // Esta é uma implementação de placeholder.
-    // Você precisará de uma API de geocodificação para converter o endereço em coordenadas.
-    // Por enquanto, retorna coordenadas fixas para não quebrar a aplicação.
-    await Future.delayed(const Duration(seconds: 1)); // Simula uma chamada de rede
+    await Future.delayed(const Duration(seconds: 1)); 
     return {
-      'latitude': -8.057838, // Exemplo: Coordenadas do Marco Zero, Recife
+      'latitude': -8.057838,
       'longitude': -34.870639,
     };
   }
-
   
-  // ... (O restante dos métodos do seu ApiService continuam aqui, sem alterações)
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de início de registo para: $uri');
@@ -380,7 +384,7 @@ Future<Map<String, dynamic>> login({
     }
   }
 
-Future<List<dynamic>> filterPromotions({
+  Future<List<dynamic>> filterPromotions({
     required String cookie,
     double? latitude,
     double? longitude,
@@ -388,16 +392,13 @@ Future<List<dynamic>> filterPromotions({
     PromotionType? promotionType,
   }) async {
     final queryParameters = <String, String>{};
-
-    // CORREÇÃO: Agrupa os parâmetros de localização.
-    // Só envia o raio se a latitude e longitude também estiverem disponíveis.
+    
     if (latitude != null && longitude != null && radius != null) {
       queryParameters['latitude'] = latitude.toString();
       queryParameters['longitude'] = longitude.toString();
       queryParameters['radius'] = radius.toString();
     }
 
-    // O filtro de tipo de promoção é independente.
     if (promotionType != null) {
       queryParameters['promotionType'] = promotionType.name.toUpperCase();
     }
@@ -406,7 +407,7 @@ Future<List<dynamic>> filterPromotions({
       queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
     );
 
-    print('Enviando requisição para: $uri'); // Adicionado para debug
+    print('Enviando requisição para: $uri');
 
     final response = await http.get(
       uri,
@@ -419,7 +420,6 @@ Future<List<dynamic>> filterPromotions({
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      // Lança um erro mais detalhado para ajudar no debug
       throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }

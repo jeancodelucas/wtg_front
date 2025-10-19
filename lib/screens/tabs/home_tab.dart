@@ -10,16 +10,16 @@ import 'package:wtg_front/services/location_service.dart';
 const Color darkTextColor = Color(0xFF1F2937);
 const Color lightTextColor = Color(0xFF6B7280);
 const Color screenBackgroundColor = Color(0xFFF9FAFB);
-const Color cardBackgroundColor = Color(0xFFF7F1E3); // CORREÇÃO 4: Cor do card alterada
+const Color cardBackgroundColor = Color(0xFFF7F1E3);
 const Color primaryAppColor = Color(0xFF6A00FF);
 const Color tagColor = Color(0xFF10B981);
 
-// Cores para os ícones, conforme solicitado
+// Cores para os ícones
 const Color iconColorLocation = Color(0xFF214886);
 const Color iconColorComplement = Color(0xFFec9b28);
 const Color iconColorDescription = Color(0xFFd74533);
-const Color iconColorReference = Color(0xFF214886); // Reutilizando a primeira cor
-const Color iconColorTitle = Color(0xFFec9b28); // Reutilizando a segunda cor
+const Color iconColorReference = Color(0xFF214886);
+const Color iconColorTitle = Color(0xFFec9b28);
 
 
 class HomeTab extends StatefulWidget {
@@ -33,7 +33,7 @@ class HomeTab extends StatefulWidget {
 class _HomeTabState extends State<HomeTab> {
   final ApiService _apiService = ApiService();
   final LocationService _locationService = LocationService();
-  
+
   bool _isLoading = true;
   String? _error;
   List<dynamic> _promotions = [];
@@ -48,7 +48,7 @@ class _HomeTabState extends State<HomeTab> {
     super.initState();
     _initializeAndFetch();
   }
-  
+
   Future<void> _initializeAndFetch() async {
     if (mounted) setState(() => _isLoading = true);
     _currentPosition = await _locationService.getCurrentPosition();
@@ -168,7 +168,7 @@ class _HomeTabState extends State<HomeTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold( 
+    return Scaffold(
       backgroundColor: screenBackgroundColor,
       body: Column(
         children: [
@@ -230,9 +230,9 @@ class _HomeTabState extends State<HomeTab> {
     }
     return RefreshIndicator(
       onRefresh: _fetchData,
-      child: Center( 
+      child: Center(
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 800), 
+          constraints: const BoxConstraints(maxWidth: 800),
           child: ListView.separated(
             padding: const EdgeInsets.all(16.0),
             itemCount: _promotions.length,
@@ -249,7 +249,35 @@ class _HomeTabState extends State<HomeTab> {
   Widget _buildEventCard(Map<String, dynamic> promotion) {
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
-    final hasComments = promotion['commentsCount'] != null && promotion['commentsCount'] > 0;
+    final ticketValue = promotion['ticketValue'];
+    
+    // Lógica para a tag de preço
+    String priceText;
+    Color priceColor;
+    IconData priceIcon;
+
+    if (isFree) {
+      priceText = 'Gratuito';
+      priceColor = Colors.green.shade700;
+      priceIcon = Icons.local_offer_outlined;
+    } else if (ticketValue != null) {
+      try {
+        priceText = 'R\$ ${double.parse(ticketValue.toString()).toStringAsFixed(2).replaceAll('.', ',')}';
+        priceColor = Colors.orange.shade800;
+        priceIcon = Icons.local_activity_outlined;
+      } catch (e) {
+        priceText = 'Inválido';
+        priceColor = Colors.red;
+        priceIcon = Icons.error_outline;
+      }
+    } else {
+      priceText = 'Consulte';
+      priceColor = Colors.blue.shade700;
+      priceIcon = Icons.info_outline;
+    }
+
+    final comments = promotion['comments'] as List<dynamic>?;
+    final hasComments = (comments != null && comments.isNotEmpty);
     final images = promotion['images'] as List<dynamic>?;
     final imageUrl = (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
 
@@ -262,20 +290,19 @@ class _HomeTabState extends State<HomeTab> {
     final reference = addressInfo?['reference'] ?? 'Não informada';
 
     return Card(
-      elevation: 0.5, // Sombra mais sutil
+      elevation: 0.5,
       shadowColor: Colors.black.withOpacity(0.1),
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade200, width: 1), // Borda sutil
+        side: BorderSide(color: Colors.grey.shade300, width: 0.5),
       ),
-      color: cardBackgroundColor, // CORREÇÃO: Cor de fundo do card
+      color: cardBackgroundColor,
       child: IntrinsicHeight(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Imagem à Esquerda
             SizedBox(
               width: 120,
               child: Container(
@@ -289,36 +316,32 @@ class _HomeTabState extends State<HomeTab> {
               ),
             ),
             
-            // Detalhes à Direita
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column( 
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (isFree || hasComments) ...[
-                      Row(
-                        children: [
-                          if (isFree)
-                            _buildTag('Gratuito', Colors.green.shade700, Icons.local_offer_outlined),
-                          if (isFree && hasComments)
-                            const SizedBox(width: 8),
-                          if (hasComments)
-                            _buildTag('Comentários', Colors.blue.shade700, Icons.comment_outlined),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                    // TAGS
+                    Row(
+                      children: [
+                        _buildTag(priceText, priceColor, priceIcon), // TAG DE PREÇO ATUALIZADA
+                        if (hasComments) const SizedBox(width: 8),
+                        if (hasComments)
+                          _buildTag('Comentários', Colors.blue.shade700, Icons.comment_outlined),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     
-                    // Detalhes com espaçamento fixo
+                    // Detalhes com espaçamento fixo e divisores
                     _buildDetailRow(Icons.push_pin_outlined, 'Nome do rolê', title, iconColorTitle),
-                    const Divider(height: 16), // CORREÇÃO: Divisores internos
+                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
                     _buildDetailRow(Icons.location_on_outlined, 'Localização', location, iconColorLocation),
-                    const Divider(height: 16),
+                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
                     _buildDetailRow(Icons.segment_outlined, 'Complemento', complement, iconColorComplement),
-                    const Divider(height: 16),
+                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
                     _buildDetailRow(Icons.description_outlined, 'Descrição', description, iconColorDescription),
-                     const Divider(height: 16),
+                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
                     _buildDetailRow(Icons.assistant_photo_outlined, 'Referência', reference, iconColorReference),
                   ],
                 ),

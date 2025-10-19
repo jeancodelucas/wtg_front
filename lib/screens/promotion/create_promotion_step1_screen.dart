@@ -24,16 +24,18 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
   final _nomeController = TextEditingController();
   final _infoController = TextEditingController();
   final _obsController = TextEditingController();
+  final _ticketValueController = TextEditingController();
   final List<File> _selectedImages = [];
   final ImagePicker _picker = ImagePicker();
   PromotionType? _selectedPromotionType;
-  bool _isFree = false;
+  bool _isFree = true; // Valor inicializado como true
 
   @override
   void dispose() {
     _nomeController.dispose();
     _infoController.dispose();
     _obsController.dispose();
+    _ticketValueController.dispose();
     super.dispose();
   }
 
@@ -62,8 +64,11 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'title': _nomeController.text,
         'description': _infoController.text,
         'obs': _obsController.text,
-        'promotionType': _selectedPromotionType,
-        'isFree': _isFree,
+        // CORREÇÃO APLICADA AQUI: Enviando o nome do enum como String
+        'promotionType': _selectedPromotionType?.name,
+        'free': _isFree,
+        'ticketValue': !_isFree ? _ticketValueController.text.replaceAll(',', '.') : null,
+        'active': true,
         'images': _selectedImages,
         'loginResponse': widget.loginResponse,
       };
@@ -104,6 +109,12 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
                 const SizedBox(height: 24),
                 _buildTypeAndFreeRow(),
                 const SizedBox(height: 24),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                  child: !_isFree ? _buildTicketValueField() : const SizedBox.shrink(),
+                ),
+                const SizedBox(height: 24),
                 _buildTextField(label: 'Informações adicionais', hint: 'Ex: show do DJ na areia da praia', controller: _infoController),
                 const SizedBox(height: 24),
                 _buildTextField(label: 'Observações', controller: _obsController),
@@ -124,6 +135,43 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTicketValueField() {
+    return Column(
+      key: const ValueKey('ticket_value_field'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Valor do Ingresso (R\$) *',
+            style: TextStyle(fontWeight: FontWeight.bold, color: darkTextColor, fontSize: 16)),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: _ticketValueController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            hintText: 'Ex: 25,50',
+            filled: true,
+            fillColor: textFieldBackgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: placeholderColor),
+            ),
+          ),
+          validator: (value) {
+            if (!_isFree) {
+              if (value == null || value.isEmpty) {
+                return 'O valor é obrigatório para eventos pagos.';
+              }
+              final price = double.tryParse(value.replaceAll(',', '.'));
+              if (price == null || price <= 0) {
+                return 'Por favor, insira um valor válido.';
+              }
+            }
+            return null;
+          },
+        ),
+      ],
     );
   }
 
@@ -217,7 +265,7 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
       ),
     );
   }
-  
+
   Widget _buildTextField({required String label, String? hint, required TextEditingController controller}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +329,12 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
             Switch(
               value: _isFree,
               onChanged: (value) {
-                setState(() { _isFree = value; });
+                setState(() { 
+                  _isFree = value; 
+                  if (_isFree) {
+                    _ticketValueController.clear();
+                  }
+                });
               },
               activeColor: primaryAppColor,
             ),
