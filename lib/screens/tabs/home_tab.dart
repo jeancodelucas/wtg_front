@@ -6,21 +6,14 @@ import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/services/location_service.dart';
 
-// Paleta de Cores
-const Color darkTextColor = Color(0xFF1F2937);
-const Color lightTextColor = Color(0xFF6B7280);
-const Color screenBackgroundColor = Color(0xFFF9FAFB);
-const Color cardBackgroundColor = Color(0xFFF7F1E3);
-const Color primaryAppColor = Color(0xFF6A00FF);
-const Color tagColor = Color(0xFF10B981);
-
-// Cores para os ícones
-const Color iconColorLocation = Color(0xFF214886);
-const Color iconColorComplement = Color(0xFFec9b28);
-const Color iconColorDescription = Color(0xFFd74533);
-const Color iconColorReference = Color(0xFF214886);
-const Color iconColorTitle = Color(0xFFec9b28);
-
+// --- PALETA DE CORES PADRONIZADA (dark mode) ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748); // Cor dos cards
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
+const Color accentColor = Color(0xFF6A00FF); // Roxo para filtros e destaques
 
 class HomeTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -43,6 +36,7 @@ class _HomeTabState extends State<HomeTab> {
   double _currentRadius = 10.0;
   PromotionType? _selectedType;
 
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA DE BACKEND ---
   @override
   void initState() {
     super.initState();
@@ -61,10 +55,11 @@ class _HomeTabState extends State<HomeTab> {
 
     final cookie = widget.loginResponse['cookie'] as String?;
     if (cookie == null) {
-      if (mounted) setState(() {
-        _error = "Sessão inválida.";
-        _isLoading = false;
-      });
+      if (mounted)
+        setState(() {
+          _error = "Sessão inválida.";
+          _isLoading = false;
+        });
       return;
     }
 
@@ -85,201 +80,179 @@ class _HomeTabState extends State<HomeTab> {
         });
       }
     } catch (e) {
-      print("### ERRO AO BUSCAR EVENTOS: $e");
       if (mounted) {
         setState(() {
-          _error = "Não foi possível carregar os eventos.";
+          _error = "Não foi possível carregar os rolês.";
           _isLoading = false;
         });
       }
     }
   }
 
-  void _showFilterSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Filtrar Eventos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: darkTextColor)),
-                  const SizedBox(height: 24),
-                  Text('Distância: até ${_currentRadius.toInt()} km', style: const TextStyle(color: darkTextColor, fontSize: 16)),
-                  Slider(
-                    value: _currentRadius,
-                    min: 1,
-                    max: 50,
-                    divisions: 49,
-                    activeColor: primaryAppColor,
-                    label: '${_currentRadius.toInt()} km',
-                    onChanged: (double value) => setModalState(() => _currentRadius = value),
-                  ),
-                  const Text('Tipo de Rolê', style: TextStyle(color: darkTextColor, fontSize: 16)),
-                  const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 8.0,
-                    runSpacing: 8.0,
-                    children: PromotionType.values.map((type) {
-                      final isSelected = _selectedType == type;
-                      return FilterChip(
-                        label: Text(type.displayName),
-                        selected: isSelected,
-                        onSelected: (bool selected) {
-                          setModalState(() => _selectedType = selected ? type : null);
-                        },
-                        backgroundColor: Colors.grey[100],
-                        selectedColor: primaryAppColor.withOpacity(0.2),
-                        labelStyle: TextStyle(color: isSelected ? primaryAppColor : darkTextColor, fontWeight: FontWeight.w600),
-                        shape: StadiumBorder(side: BorderSide(color: isSelected ? primaryAppColor : Colors.grey.shade300)),
-                        showCheckmark: false,
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _fetchData();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryAppColor,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Aplicar Filtros', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: screenBackgroundColor,
-      body: Column(
-        children: [
-          _buildTopFiltersBar(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                '${_promotions.length} rolês encontrados',
-                style: const TextStyle(color: lightTextColor, fontWeight: FontWeight.w600),
+      backgroundColor: darkBackgroundColor,
+      body: SafeArea(
+        child: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) {
+            return [
+              SliverAppBar(
+                backgroundColor: darkBackgroundColor,
+                floating: true,
+                pinned: false,
+                snap: true,
+                expandedHeight: 140.0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: _buildFilters(),
+                  ),
+                ),
               ),
-            ),
-          ),
-          Expanded(child: _buildContent()),
-        ],
+            ];
+          },
+          body: _buildContent(),
+        ),
       ),
     );
   }
 
-  Widget _buildTopFiltersBar() {
+  Widget _buildFilters() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: cardBackgroundColor,
-        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildFilterButton(icon: Icons.sort, label: 'Ordenar', onPressed: () {}),
-          _buildFilterButton(icon: Icons.filter_list, label: 'Filtrar', onPressed: _showFilterSheet),
-          _buildFilterButton(icon: Icons.map_outlined, label: 'Mapa', onPressed: () {}),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Distância',
+                  style: TextStyle(
+                      color: primaryTextColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500)),
+              Text('${_currentRadius.toInt()} km',
+                  style: const TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500)),
+            ],
+          ),
+          Slider(
+            value: _currentRadius,
+            min: 1,
+            max: 50,
+            divisions: 49,
+            activeColor: primaryButtonColor,
+            inactiveColor: fieldBackgroundColor,
+            label: '${_currentRadius.toInt()} km',
+            onChanged: (double value) {
+              setState(() => _currentRadius = value);
+            },
+            onChangeEnd: (double value) {
+              _fetchData();
+            },
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                FilterChip(
+                  label: const Text("Todos"),
+                  selected: _selectedType == null,
+                  onSelected: (bool selected) {
+                    setState(() {
+                      _selectedType = null;
+                      _fetchData();
+                    });
+                  },
+                  backgroundColor: fieldBackgroundColor,
+                  selectedColor: accentColor,
+                  labelStyle: TextStyle(
+                      color:
+                          _selectedType == null ? Colors.white : secondaryTextColor,
+                      fontWeight: FontWeight.w600),
+                  shape: StadiumBorder(
+                      side: BorderSide(
+                          color: _selectedType == null
+                              ? accentColor
+                              : fieldBorderColor)),
+                  showCheckmark: false,
+                ),
+                const SizedBox(width: 8),
+                ...PromotionType.values.map((type) {
+                  final isSelected = _selectedType == type;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: FilterChip(
+                      label: Text(type.displayName),
+                      selected: isSelected,
+                      onSelected: (bool selected) {
+                        setState(() {
+                          _selectedType = selected ? type : null;
+                          _fetchData();
+                        });
+                      },
+                      backgroundColor: fieldBackgroundColor,
+                      selectedColor: accentColor,
+                      labelStyle: TextStyle(
+                          color:
+                              isSelected ? Colors.white : secondaryTextColor,
+                          fontWeight: FontWeight.w600),
+                      shape: StadiumBorder(
+                          side: BorderSide(
+                              color:
+                                  isSelected ? accentColor : fieldBorderColor)),
+                      showCheckmark: false,
+                    ),
+                  );
+                }),
+              ],
+            ),
+          )
         ],
-      ),
-    );
-  }
-
-  Widget _buildFilterButton({required IconData icon, required String label, required VoidCallback onPressed}) {
-    return TextButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, color: darkTextColor, size: 20),
-      label: Text(label, style: const TextStyle(color: darkTextColor, fontWeight: FontWeight.bold)),
-      style: TextButton.styleFrom(
-        foregroundColor: primaryAppColor,
       ),
     );
   }
 
   Widget _buildContent() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+          child: CircularProgressIndicator(color: primaryButtonColor));
     }
     if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: Colors.red)));
+      return Center(
+          child: Text(_error!, style: const TextStyle(color: Colors.red)));
     }
     if (_promotions.isEmpty) {
-      return const Center(child: Text("Nenhum evento encontrado."));
+      return const Center(
+          child: Text("Nenhum rolê encontrado.",
+              style: TextStyle(color: secondaryTextColor, fontSize: 16)));
     }
     return RefreshIndicator(
       onRefresh: _fetchData,
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: _promotions.length,
-            itemBuilder: (context, index) {
-              return _buildEventCard(_promotions[index]);
-            },
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-          ),
-        ),
+      color: primaryButtonColor,
+      backgroundColor: fieldBackgroundColor,
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 24.0),
+        itemCount: _promotions.length,
+        itemBuilder: (context, index) {
+          return _buildEventCard(_promotions[index] as Map<String, dynamic>);
+        },
       ),
     );
   }
 
+  // --- CARD DO EVENTO ATUALIZADO PARA O LAYOUT HORIZONTAL COM INFORMAÇÕES COMPLETAS ---
   Widget _buildEventCard(Map<String, dynamic> promotion) {
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
     final ticketValue = promotion['ticketValue'];
-    
-    // Lógica para a tag de preço
-    String priceText;
-    Color priceColor;
-    IconData priceIcon;
-
-    if (isFree) {
-      priceText = 'Gratuito';
-      priceColor = Colors.green.shade700;
-      priceIcon = Icons.local_offer_outlined;
-    } else if (ticketValue != null) {
-      try {
-        priceText = 'R\$ ${double.parse(ticketValue.toString()).toStringAsFixed(2).replaceAll('.', ',')}';
-        priceColor = Colors.orange.shade800;
-        priceIcon = Icons.local_activity_outlined;
-      } catch (e) {
-        priceText = 'Inválido';
-        priceColor = Colors.red;
-        priceIcon = Icons.error_outline;
-      }
-    } else {
-      priceText = 'Consulte';
-      priceColor = Colors.blue.shade700;
-      priceIcon = Icons.info_outline;
-    }
-
-    final comments = promotion['comments'] as List<dynamic>?;
-    final hasComments = (comments != null && comments.isNotEmpty);
     final images = promotion['images'] as List<dynamic>?;
-    final imageUrl = (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
+    final imageUrl =
+        (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
 
     final title = promotion['title'] ?? 'Nome do Rolê';
     final description = promotion['description'] ?? 'Descrição não informada';
@@ -289,60 +262,83 @@ class _HomeTabState extends State<HomeTab> {
     final complement = addressInfo?['complement'] ?? 'Não informado';
     final reference = addressInfo?['reference'] ?? 'Não informada';
 
+    String priceText;
+    if (isFree) {
+      priceText = 'Gratuito';
+    } else if (ticketValue != null) {
+      priceText =
+          'R\$ ${double.parse(ticketValue.toString()).toStringAsFixed(2).replaceAll('.', ',')}';
+    } else {
+      priceText = 'Consulte';
+    }
+
     return Card(
-      elevation: 0.5,
-      shadowColor: Colors.black.withOpacity(0.1),
-      margin: EdgeInsets.zero,
+      color: fieldBackgroundColor,
+      margin: const EdgeInsets.only(bottom: 20),
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: Colors.grey.shade300, width: 0.5),
-      ),
-      color: cardBackgroundColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: IntrinsicHeight(
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // IMAGEM À ESQUERDA
             SizedBox(
-              width: 120,
-              child: Container(
-                color: Colors.grey[200],
-                child: imageUrl != null
-                    ? Image.network(imageUrl, fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                        errorBuilder: (context, error, stack) => const Center(child: Icon(Icons.broken_image_outlined, color: Colors.grey, size: 40)),
-                      )
-                    : const Center(child: Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 40)),
-              ),
+              width: 130,
+              child: imageUrl != null
+                  ? Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Center(
+                            child: Icon(Icons.error_outline,
+                                color: fieldBorderColor));
+                      },
+                    )
+                  : const Center(
+                      child: Icon(Icons.image_not_supported_outlined,
+                          color: fieldBorderColor, size: 40)),
             ),
-            
+            // CONTEÚDO COMPLETO À DIREITA
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column( 
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // TAGS
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildTag(priceText, priceColor, priceIcon), // TAG DE PREÇO ATUALIZADA
-                        if (hasComments) const SizedBox(width: 8),
-                        if (hasComments)
-                          _buildTag('Comentários', Colors.blue.shade700, Icons.comment_outlined),
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: primaryTextColor),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildTag(
+                          text: priceText,
+                          color: isFree ? Colors.green : accentColor,
+                          icon: Icons.local_offer_outlined,
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    
-                    // Detalhes com espaçamento fixo e divisores
-                    _buildDetailRow(Icons.push_pin_outlined, 'Nome do rolê', title, iconColorTitle),
-                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
-                    _buildDetailRow(Icons.location_on_outlined, 'Localização', location, iconColorLocation),
-                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
-                    _buildDetailRow(Icons.segment_outlined, 'Complemento', complement, iconColorComplement),
-                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
-                    _buildDetailRow(Icons.description_outlined, 'Descrição', description, iconColorDescription),
-                    const Divider(height: 16, color: Color(0xFFEAE2D6)),
-                    _buildDetailRow(Icons.assistant_photo_outlined, 'Referência', reference, iconColorReference),
+                    const SizedBox(height: 8),
+                    const Divider(color: fieldBorderColor),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(
+                        Icons.location_on_outlined, 'Localização', location),
+                    _buildDetailRow(
+                        Icons.segment_outlined, 'Complemento', complement),
+                    _buildDetailRow(
+                        Icons.description_outlined, 'Descrição', description),
+                    _buildDetailRow(
+                        Icons.assistant_photo_outlined, 'Referência', reference),
                   ],
                 ),
               ),
@@ -353,44 +349,62 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value, Color iconColor) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: iconColor, size: 18),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 11, fontWeight: FontWeight.w500)),
-              const SizedBox(height: 1),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: darkTextColor),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    if (value == 'Não informado' || value.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: secondaryTextColor, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        color: secondaryTextColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: primaryTextColor),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  Widget _buildTag(String text, Color color, IconData icon) {
+  Widget _buildTag(
+      {required String text, required Color color, required IconData icon}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.5), width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 14),
-          const SizedBox(width: 5),
-          Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(width: 6),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.bold, fontSize: 12)),
         ],
       ),
     );

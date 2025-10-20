@@ -1,16 +1,15 @@
 // lib/screens/registration_success_screen.dart
 
 import 'package:flutter/material.dart';
-import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart'; // Importe a tela
+import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart';
 import 'package:wtg_front/screens/main_screen.dart';
-// lib/screens/registration_success_screen.dart
-// lib/screens/registration_success_screen.dart
 
-
-// Cores
-const Color primaryColor = Color(0xFF214886);
-const Color darkTextColor = Color(0xFF1F2937);
-const Color lightTextColor = Color(0xFF6B7280);
+// --- PALETA DE CORES PADRONIZADA (dark mode) ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color primaryButtonColor = Color(0xFFE53E3E);
+const Color accentColor = Color(0xFF218c74); // Verde para destaque, como no Step 1
 
 class RegistrationSuccessScreen extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -20,7 +19,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: darkBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -29,36 +28,46 @@ class RegistrationSuccessScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Spacer(flex: 2),
-              Image.asset(
-                'assets/images/Celebration.png',
-                height: MediaQuery.of(context).size.height * 0.3,
+              // Ícone de celebração alinhado com o novo design
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accentColor.withOpacity(0.1),
+                ),
+                child: const Icon(
+                  Icons.celebration_outlined,
+                  color: accentColor,
+                  size: 80,
+                ),
               ),
               const SizedBox(height: 40),
+              // Textos com a nova tipografia e cores
               const Text(
-                'Bora descobrir uns eventos?',
+                'Bora descobrir uns rolês?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: darkTextColor,
+                  color: primaryTextColor,
                 ),
               ),
               const SizedBox(height: 16),
               const Text(
-                'Parabéns! Tá tudo certo, agora só achar os melhores rolê ou criar um e divulgar por aqui. \nE aí, bora começar?',
+                'Parabéns! Tá tudo certo, agora só achar os melhores rolês ou criar um e divulgar por aqui.\nE aí, bora começar?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
-                  color: lightTextColor,
+                  color: secondaryTextColor,
                   height: 1.5,
                 ),
               ),
               const Spacer(flex: 3),
+              // Botões padronizados
               _buildPrimaryButton(
-                text: 'Cadastrar evento',
+                text: 'Cadastrar um Rolê',
                 onPressed: () {
-                  // --- CORREÇÃO APLICADA AQUI ---
-                  // Agora estamos passando os dados do usuário (loginResponse) para a próxima tela.
+                  // Funcionalidade original mantida
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (context) => CreatePromotionStep1Screen(loginResponse: userData),
@@ -70,6 +79,7 @@ class RegistrationSuccessScreen extends StatelessWidget {
               _buildSecondaryButton(
                 text: 'Ir para a Home',
                 onPressed: () {
+                  // Funcionalidade original mantida
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
                       builder: (context) => MainScreen(loginResponse: userData),
@@ -86,30 +96,39 @@ class RegistrationSuccessScreen extends StatelessWidget {
     );
   }
 
+  // Widget para o botão primário, seguindo o padrão de create_promotion_screens
   Widget _buildPrimaryButton({required String text, required VoidCallback onPressed}) {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: primaryColor,
+        backgroundColor: primaryButtonColor,
         foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        minimumSize: const Size(double.infinity, 56),
+        padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(double.infinity, 50),
-        elevation: 0,
+        elevation: 3,
+        shadowColor: primaryButtonColor.withOpacity(0.4),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
+  // Widget para o botão secundário (Outlined), com o novo padrão visual
   Widget _buildSecondaryButton({required String text, required VoidCallback onPressed}) {
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        foregroundColor: primaryColor,
-        padding: const EdgeInsets.symmetric(vertical: 16),
+        foregroundColor: primaryTextColor,
+        padding: const EdgeInsets.symmetric(vertical: 18),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        minimumSize: const Size(double.infinity, 50),
-        side: const BorderSide(color: primaryColor, width: 2),
+        minimumSize: const Size(double.infinity, 56),
+        side: const BorderSide(color: Color(0xFF4A5568), width: 2), // Cor da borda dos campos
       ),
       child: Text(text, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
     );
