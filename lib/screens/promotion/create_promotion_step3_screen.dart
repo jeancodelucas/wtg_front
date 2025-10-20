@@ -1,16 +1,24 @@
+// lib/screens/promotion/create_promotion_step3_screen.dart
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/screens/home_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// --- Paleta de Cores ---
-const Color primaryAppColor = Color(0xFF6A00FF);
-const Color backgroundColor = Color(0xFFF8F8FA);
-const Color darkTextColor = Color(0xFF2D3748);
-const Color lightTextColor = Color(0xFF718096);
+// --- PALETA DE CORES PADRONIZADA ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
+
+// Cores do Breadcrumb
+const Color step1Color = Color(0xFF218c74); // Verde
+const Color step2Color = Color(0xFFF6AD55); // Laranja
+const Color accentColor = Color(0xFFF56565); // Vermelho para a etapa 3
 
 class CreatePromotionStep3Screen extends StatefulWidget {
   final Map<String, dynamic> promotionData;
@@ -31,121 +39,129 @@ class _CreatePromotionStep3ScreenState
     extends State<CreatePromotionStep3Screen> {
   final _apiService = ApiService();
   bool _isLoading = false;
-  bool _isVisible = true; // O switch começa ligado
+  bool _isVisible = true;
 
-Future<void> _submitFinalPromotion() async {
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+  Future<void> _submitFinalPromotion() async {
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? cookie = prefs.getString('session_cookie');
-      if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
+      if (cookie == null)
+        throw Exception('Sessão expirada. Faça o login novamente.');
 
       final LatLng coordinates = widget.promotionData['coordinates'];
-      final Map<String, dynamic> addressData = widget.promotionData['addressData'];
+      final Map<String, dynamic> addressData =
+          widget.promotionData['addressData'];
       final bool isFree = widget.promotionData['free'] as bool;
 
       final Map<String, dynamic> promotionDataPayload = {
         "title": widget.promotionData['title'],
         "description": widget.promotionData['description'],
         "obs": widget.promotionData['obs'],
-        "promotionType": (widget.promotionData['promotionType'] as String).toUpperCase(),
+        "promotionType":
+            (widget.promotionData['promotionType'] as String).toUpperCase(),
         "active": _isVisible,
-        "completeRegistration": false, // Será completado no passo seguinte
+        "completeRegistration": false,
         "address": addressData,
         "free": isFree,
-        
-        // --- CORREÇÃO ADICIONADA AQUI ---
         "latitude": coordinates.latitude,
         "longitude": coordinates.longitude,
-        // --- FIM DA CORREÇÃO ---
       };
 
       if (!isFree) {
         final String? ticketValueString = widget.promotionData['ticketValue'];
-        final double? ticketValue = ticketValueString != null ? double.tryParse(ticketValueString) : null;
-        
+        final double? ticketValue =
+            ticketValueString != null ? double.tryParse(ticketValueString) : null;
+
         if (ticketValue == null || ticketValue <= 0) {
           throw Exception('Valor do ingresso é inválido para uma promoção paga.');
         }
         promotionDataPayload['ticketValue'] = ticketValue;
       }
-      
-      final createResponse = await _apiService.createPromotion(promotionDataPayload, cookie);
+
+      final createResponse =
+          await _apiService.createPromotion(promotionDataPayload, cookie);
       final newPromotionId = createResponse['id']?.toString();
-      if (newPromotionId == null) throw Exception('Não foi possível obter o ID da promoção criada.');
-      
+      if (newPromotionId == null)
+        throw Exception('Não foi possível obter o ID da promoção criada.');
+
+      // --- LINHA DE CÓDIGO RESTAURADA ---
       final List<File> images = widget.promotionData['images'];
-      if (images.isNotEmpty) await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
+      if (images.isNotEmpty) {
+        await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
+      }
       
       await _apiService.completePromotionRegistration(newPromotionId, cookie);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => HomeScreen(loginResponse: widget.loginResponse),
           ),
-          (route) => false
+          (route) => false,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: darkBackgroundColor,
       appBar: AppBar(
-        backgroundColor: backgroundColor,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
-        automaticallyImplyLeading: false, // Remove o botão de voltar padrão
+        automaticallyImplyLeading: false,
+        actions: [
+          _buildBreadcrumbs(),
+          const SizedBox(width: 16),
+        ],
       ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                children: [
-                  const SizedBox(height: 40),
-                  const Text('🎉', style: TextStyle(fontSize: 64)),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Seu rolê foi cadastrado\ncom sucesso',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                      color: darkTextColor,
-                    ),
-                  ),
-                ],
+              const Spacer(flex: 2),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: accentColor.withOpacity(0.1),
+                ),
+                child: const Icon(Icons.celebration_outlined,
+                    color: accentColor, size: 64),
               ),
-              
+              const SizedBox(height: 24),
+              const Text(
+                'Seu rolê foi cadastrado\ncom sucesso!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: primaryTextColor,
+                ),
+              ),
+              const Spacer(flex: 3),
               Container(
                 padding: const EdgeInsets.all(24.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
-                      spreadRadius: -5,
-                      blurRadius: 20,
-                      offset: const Offset(0, -10),
-                    ),
-                  ],
+                  color: fieldBackgroundColor,
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -159,7 +175,7 @@ Future<void> _submitFinalPromotion() async {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: darkTextColor,
+                              color: primaryTextColor,
                             ),
                           ),
                         ),
@@ -170,7 +186,9 @@ Future<void> _submitFinalPromotion() async {
                               _isVisible = value;
                             });
                           },
-                          activeColor: primaryAppColor,
+                          activeColor: accentColor,
+                          trackOutlineColor:
+                              MaterialStateProperty.all(fieldBorderColor),
                         ),
                       ],
                     ),
@@ -179,37 +197,110 @@ Future<void> _submitFinalPromotion() async {
                       'A partir do momento que o evento fica visível, dentro do plano normal, você só poderá ter controle dessa visibilidade durante 24hrs, após isso só será possível controlar novamente a visibilidade do seu evento daqui a 7 dias e apenas durante 24hrs. Para que você possa ter controle total de visibilidade do seu evento adquira o plano mensal!',
                       style: TextStyle(
                         fontSize: 14,
-                        color: lightTextColor,
+                        color: secondaryTextColor,
                         height: 1.5,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: _isLoading ? null : _submitFinalPromotion,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryAppColor,
-                        minimumSize: const Size(double.infinity, 56),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
-                      ),
-                      child: _isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Finalizar',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                    ),
+                    _buildPrimaryButton(
+                        'Finalizar', _submitFinalPromotion, _isLoading),
                   ],
                 ),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBreadcrumbs() {
+    return SizedBox(
+      width: MediaQuery.of(context).size.width * 0.4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _buildStep(
+              icon: Icons.storefront, stepColor: step1Color, isComplete: true),
+          _buildConnector(isComplete: true, color: step2Color),
+          _buildStep(
+              icon: Icons.location_on_outlined,
+              stepColor: step2Color,
+              isComplete: true),
+          _buildConnector(isComplete: true, color: accentColor),
+          _buildStep(icon: Icons.check, stepColor: accentColor, isActive: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep({
+    required IconData icon,
+    required Color stepColor,
+    bool isActive = false,
+    bool isComplete = false,
+  }) {
+    final double iconSize = isActive ? 26.0 : 20.0;
+    final double containerSize = isActive ? 44.0 : 38.0;
+    final Color iconColor = isComplete
+        ? stepColor.withOpacity(0.4)
+        : (isActive ? Colors.white : secondaryTextColor.withOpacity(0.7));
+
+    return Container(
+      width: containerSize,
+      height: containerSize,
+      decoration: BoxDecoration(
+        color: isActive ? stepColor : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isComplete
+              ? stepColor.withOpacity(0.4)
+              : (isActive ? stepColor : fieldBorderColor),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Icon(icon, color: iconColor, size: iconSize),
+      ),
+    );
+  }
+
+  Widget _buildConnector({required bool isComplete, required Color color}) {
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: isComplete ? color.withOpacity(0.4) : fieldBorderColor,
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton(
+      String text, VoidCallback onPressed, bool isLoading) {
+    return ElevatedButton(
+      onPressed: isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryButtonColor,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 64),
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 3,
+        shadowColor: primaryButtonColor.withOpacity(0.5),
+      ),
+      child: isLoading
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child:
+                  CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+          : Text(
+              text,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
     );
   }
 }
