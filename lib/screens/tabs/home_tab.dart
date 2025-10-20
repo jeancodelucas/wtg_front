@@ -36,7 +36,6 @@ class _HomeTabState extends State<HomeTab> {
   double _currentRadius = 10.0;
   PromotionType? _selectedType;
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA DE BACKEND ---
   @override
   void initState() {
     super.initState();
@@ -55,11 +54,12 @@ class _HomeTabState extends State<HomeTab> {
 
     final cookie = widget.loginResponse['cookie'] as String?;
     if (cookie == null) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _error = "Sessão inválida.";
           _isLoading = false;
         });
+      }
       return;
     }
 
@@ -245,7 +245,6 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  // --- CARD DO EVENTO ATUALIZADO PARA O LAYOUT HORIZONTAL COM INFORMAÇÕES COMPLETAS ---
   Widget _buildEventCard(Map<String, dynamic> promotion) {
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
@@ -253,6 +252,9 @@ class _HomeTabState extends State<HomeTab> {
     final images = promotion['images'] as List<dynamic>?;
     final imageUrl =
         (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
+
+    // LINHA DE DIAGNÓSTICO: Verifique o console para ver a URL
+    print('Carregando Card para "${promotion['title']}". URL da Imagem: $imageUrl');
 
     final title = promotion['title'] ?? 'Nome do Rolê';
     final description = promotion['description'] ?? 'Descrição não informada';
@@ -281,24 +283,41 @@ class _HomeTabState extends State<HomeTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // IMAGEM À ESQUERDA
+            // --- WIDGET DE IMAGEM ATUALIZADO ---
             SizedBox(
               width: 130,
               child: imageUrl != null
                   ? Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
                         return const Center(
-                            child: Icon(Icons.error_outline,
-                                color: fieldBorderColor));
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: primaryButtonColor,
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        print('Erro ao carregar imagem: $error');
+                        return const Center(
+                          child: Icon(
+                            Icons.error_outline,
+                            color: fieldBorderColor,
+                            size: 40,
+                          ),
+                        );
                       },
                     )
                   : const Center(
-                      child: Icon(Icons.image_not_supported_outlined,
-                          color: fieldBorderColor, size: 40)),
+                      child: Icon(
+                        Icons.image_not_supported_outlined,
+                        color: fieldBorderColor,
+                        size: 40,
+                      ),
+                    ),
             ),
-            // CONTEÚDO COMPLETO À DIREITA
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
