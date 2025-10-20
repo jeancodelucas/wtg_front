@@ -1,20 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:wtg_front/screens/auth_screen.dart';
-import 'package:wtg_front/screens/tabs/home_tab.dart';
-import 'package:wtg_front/screens/tabs/my_events_tab.dart';
-import 'package:wtg_front/screens/tabs/profile_tab.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+// lib/screens/main_screen.dart
 
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wtg_front/screens/auth_screen.dart';
 import 'auth_screen.dart';
 import 'tabs/home_tab.dart';
 import 'tabs/my_events_tab.dart';
 import 'tabs/profile_tab.dart';
 
-
-
-// Cores
-const Color primaryAppColor = Color(0xFF6A00FF);
-const Color darkTextColor = Color(0xFF2D3748);
+// --- PALETA DE CORES PADRONIZADA (dark mode) ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color primaryButtonColor = Color(0xFFE53E3E);
 
 class MainScreen extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -26,28 +24,23 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _selectedIndex = 0;
-  late final List<Widget> _widgetOptions;
+  int _currentIndex = 0;
+  late final List<Widget> _tabs;
 
   @override
   void initState() {
     super.initState();
-    _widgetOptions = <Widget>[
+    _tabs = [
       HomeTab(loginResponse: widget.loginResponse),
       MyEventsTab(loginResponse: widget.loginResponse),
       ProfileTab(loginResponse: widget.loginResponse),
     ];
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+
     if (mounted) {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const AuthScreen()),
@@ -58,43 +51,64 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userFirstName = widget.loginResponse['user']?['firstName'] ?? 'Usuário';
-    
-    String appBarTitle;
-    switch (_selectedIndex) {
-      case 1:
-        appBarTitle = 'Informações do seu rolê';
-        break;
-      case 2:
-        appBarTitle = 'Meu Perfil';
-        break;
-      default:
-        appBarTitle = 'Olá, $userFirstName';
-    }
-
     return Scaffold(
+      backgroundColor: darkBackgroundColor,
+      // --- APPBAR PADRONIZADA ---
       appBar: AppBar(
-        title: Text(appBarTitle),
+        backgroundColor: darkBackgroundColor,
+        elevation: 0,
+        automaticallyImplyLeading: false, // Remove o botão de voltar
+        title: SizedBox(
+          height: 35, // Ajuste a altura conforme necessário
+          child: Image.asset(
+            'assets/images/LaRuaNameLogo.png',
+            fit: BoxFit.contain,
+          ),
+        ),
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout_outlined, color: secondaryTextColor),
             tooltip: 'Sair',
             onPressed: _logout,
           ),
         ],
       ),
-      // --- CORREÇÃO PRINCIPAL APLICADA AQUI ---
-      // O widget Center foi removido para permitir que a lista se expanda corretamente.
-      body: _widgetOptions.elementAt(_selectedIndex),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _tabs,
+      ),
+      // --- BOTTOM NAVIGATION BAR PADRONIZADA ---
       bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Início'),
-          BottomNavigationBarItem(icon: Icon(Icons.celebration), label: 'Meu Evento'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Perfil'),
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        backgroundColor: darkBackgroundColor,
+        selectedItemColor: primaryButtonColor, // Cor para o item selecionado
+        unselectedItemColor: secondaryTextColor, // Cor para itens não selecionados
+        type: BottomNavigationBarType.fixed,
+        elevation: 0, // Remove a sombra
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.celebration_outlined),
+            activeIcon: Icon(Icons.celebration),
+            label: 'Meu Evento',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Perfil',
+          ),
         ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: const Color(0xFFd74533),
-        onTap: _onItemTapped,
       ),
     );
   }
