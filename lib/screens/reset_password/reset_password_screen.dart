@@ -4,23 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/auth_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// Cores utilizadas na tela, seguindo a paleta do app.
-const Color darkTextColor = Color(0xFF1F2937);
-const Color fieldBackgroundColor = Color(0xFFF9FAFB);
+// --- PALETA DE CORES PADRONIZADA ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
 
-// Novas cores solicitadas e as do medidor de senha
-const Color primaryButtonColor = Color(0xFFd74533);
-const Color successColor = Color(0xFF10ac84);
-const Color errorColor = Color(0xFFd74533);
-const Color hintTextColor = Color(0xFF10ac84);
-const Color keyIconColor = Color(0xFFf19f2a); // --- NOVA COR DO ÍCONE
+const Color passwordWeakColor = Color(0xFFF56565);
+const Color passwordMediumColor = Color(0xFFF6AD55);
+const Color passwordStrongColor = Color(0xFF48BB78);
+const Color keyIconColor = Color(0xFFF6AD55);
 
-// --- CORES DO MEDIDOR DE SENHA (COPIADO DA TELA DE CADASTRO) ---
-const Color passwordWeakColor = Color(0xFFd74533);
-const Color passwordMediumColor = Color(0xFFec9b28);
-const Color passwordStrongColor = Color(0xFF10ac84);
-
-// --- ENUM DO MEDIDOR DE SENHA (COPIADO DA TELA DE CADASTRO) ---
 enum PasswordStrength { none, weak, medium, strong }
 
 class ResetPasswordScreen extends StatefulWidget {
@@ -43,7 +39,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _apiService = ApiService();
   bool _isLoading = false;
 
-  // --- VARIÁVEIS DE ESTADO PARA O MEDIDOR E REQUISITOS ---
   PasswordStrength _passwordStrength = PasswordStrength.none;
   bool _has8Chars = false,
       _hasUppercase = false,
@@ -67,7 +62,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  // --- LÓGICA DE VALIDAÇÃO ATUALIZADA (COPIADA DA TELA DE CADASTRO) ---
+  // --- LÓGICA DE FUNCIONALIDADE INALTERADA ---
   void _validatePassword() {
     final pass = _passwordController.text;
     int score = 0;
@@ -96,7 +91,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   Future<void> _submitNewPassword() async {
-    // ... (lógica de submit permanece a mesma)
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('As senhas não coincidem.')));
@@ -143,136 +137,79 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     }
   }
 
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+
   @override
   Widget build(BuildContext context) {
-    final bool allRequirementsMet =
-        _has8Chars && _hasUppercase && _hasNumber && _hasSpecialChar;
-    final bool isPasswordEmpty = _passwordController.text.isEmpty;
-
-    final Color requirementsColor = isPasswordEmpty
-        ? Colors.grey
-        : allRequirementsMet
-            ? successColor
-            : errorColor;
-
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: darkBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: darkTextColor),
+          icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 24),
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    // --- COR DO FUNDO DO ÍCONE ALTERADA ---
-                    color: keyIconColor.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  // --- COR DO ÍCONE ALTERADA ---
-                  child: const Icon(Icons.vpn_key_outlined,
-                      color: keyIconColor, size: 32),
-                ),
+              const Center(
+                child: Icon(Icons.vpn_key_outlined,
+                    color: keyIconColor, size: 48),
               ),
               const SizedBox(height: 24),
               const Text(
                 'Crie uma nova senha',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
-                  color: darkTextColor,
+                  color: primaryTextColor,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               const Text(
                 'Lembre-se de criar uma senha forte e segura!',
-                style: TextStyle(fontSize: 16, color: hintTextColor),
+                style: TextStyle(fontSize: 16, color: secondaryTextColor),
               ),
               const SizedBox(height: 40),
-              const Text('Nova Senha',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: darkTextColor)),
-              const SizedBox(height: 8),
-              TextFormField(
+              _buildTextField(
+                label: 'Nova Senha',
                 controller: _passwordController,
-                obscureText: _isPasswordObscured,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: fieldBackgroundColor,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isPasswordObscured
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: () =>
-                        setState(() => _isPasswordObscured = !_isPasswordObscured),
-                  ),
-                ),
+                isObscured: _isPasswordObscured,
+                onToggleVisibility: () =>
+                    setState(() => _isPasswordObscured = !_isPasswordObscured),
               ),
-              const SizedBox(height: 24),
-              const Text('Confirme a nova senha',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold, color: darkTextColor)),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _confirmPasswordController,
-                obscureText: _isConfirmPasswordObscured,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: fieldBackgroundColor,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none),
-                  suffixIcon: IconButton(
-                    icon: Icon(_isConfirmPasswordObscured
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined),
-                    onPressed: () => setState(() =>
-                        _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
-                  ),
-                ),
-              ),
-
-              // --- MEDIDOR DE SENHA ADICIONADO AQUI ---
               const SizedBox(height: 16),
               _buildPasswordStrengthIndicator(),
               const SizedBox(height: 24),
-
-              Text('Sua senha deve conter:',
-                  style: TextStyle(color: requirementsColor)),
-              const SizedBox(height: 8),
-              _buildRequirementRow('8 caracteres', _has8Chars),
-              _buildRequirementRow('1 letra maiúscula', _hasUppercase),
-              _buildRequirementRow('1 número', _hasNumber),
-              _buildRequirementRow(
-                  '1 caractere especial (ex: @, \$, !, %, #, ?)',
-                  _hasSpecialChar),
+              _buildTextField(
+                label: 'Confirme a nova senha',
+                controller: _confirmPasswordController,
+                isObscured: _isConfirmPasswordObscured,
+                onToggleVisibility: () => setState(() =>
+                    _isConfirmPasswordObscured = !_isConfirmPasswordObscured),
+              ),
               const SizedBox(height: 24),
+              _buildPasswordRequirements(),
+              const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: _isLoading ? null : _submitNewPassword,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryButtonColor,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 22),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  minimumSize: const Size(double.infinity, 64),
                 ),
                 child: _isLoading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text('Redefinir Senha',
-                        style: TextStyle(color: Colors.white)),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
               const SizedBox(height: 20),
             ],
@@ -282,28 +219,72 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    bool isObscured = false,
+    VoidCallback? onToggleVisibility,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600, color: secondaryTextColor, fontSize: 16)),
+        const SizedBox(height: 12),
+        TextFormField(
+          controller: controller,
+          obscureText: isObscured,
+          style: const TextStyle(color: primaryTextColor, fontWeight: FontWeight.w500),
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.lock_outline, color: keyIconColor, size: 22),
+            filled: true,
+            fillColor: fieldBackgroundColor,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: keyIconColor, width: 2)),
+            suffixIcon: onToggleVisibility != null
+                ? IconButton(
+                    icon: Icon(isObscured ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: secondaryTextColor),
+                    onPressed: onToggleVisibility,
+                  )
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPasswordRequirements() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildRequirementRow('Pelo menos 8 caracteres', _has8Chars),
+        _buildRequirementRow('Uma letra maiúscula', _hasUppercase),
+        _buildRequirementRow('Um número', _hasNumber),
+        _buildRequirementRow('Um caractere especial (ex: @#\$%)', _hasSpecialChar),
+      ],
+    );
+  }
+
   Widget _buildRequirementRow(String text, bool met) {
-    final bool isPasswordEmpty = _passwordController.text.isEmpty;
-    final Color color =
-        isPasswordEmpty ? Colors.grey : (met ? successColor : errorColor);
+    final isPasswordEmpty = _passwordController.text.isEmpty;
+    final Color color = isPasswordEmpty
+        ? secondaryTextColor
+        : (met ? passwordStrongColor : secondaryTextColor);
+    final IconData icon = isPasswordEmpty
+        ? Icons.circle_outlined
+        : (met ? Icons.check_circle : Icons.circle_outlined);
 
     return Padding(
-      padding: const EdgeInsets.only(top: 8.0),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         children: [
-          Icon(
-            met ? Icons.check_circle : Icons.circle_outlined,
-            color: color,
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Text(text, style: TextStyle(color: color)),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 12),
+          Text(text, style: TextStyle(color: color, fontSize: 14)),
         ],
       ),
     );
   }
 
-  // --- WIDGET DO MEDIDOR DE SENHA (COPIADO DA TELA DE CADASTRO) ---
   Widget _buildPasswordStrengthIndicator() {
     String strengthText;
     Color strengthColor;
@@ -323,7 +304,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         break;
       default:
         strengthText = '';
-        strengthColor = Colors.grey[300]!;
+        strengthColor = fieldBorderColor;
     }
 
     return Column(
@@ -331,22 +312,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       children: [
         Row(
           children: [
-            Expanded(
-              child: _buildStrengthBar(
-                _passwordStrength.index >= 1 ? strengthColor : Colors.grey[300]!,
-              ),
+            _buildStrengthBar(
+              _passwordStrength.index >= 1 ? strengthColor : fieldBorderColor,
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _buildStrengthBar(
-                _passwordStrength.index >= 2 ? strengthColor : Colors.grey[300]!,
-              ),
+            _buildStrengthBar(
+              _passwordStrength.index >= 2 ? strengthColor : fieldBorderColor,
             ),
             const SizedBox(width: 8),
-            Expanded(
-              child: _buildStrengthBar(
-                _passwordStrength.index >= 3 ? strengthColor : Colors.grey[300]!,
-              ),
+            _buildStrengthBar(
+              _passwordStrength.index >= 3 ? strengthColor : fieldBorderColor,
             ),
           ],
         ),
@@ -365,14 +340,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     );
   }
 
-  // --- WIDGET AUXILIAR DO MEDIDOR (COPIADO DA TELA DE CADASTRO) ---
   Widget _buildStrengthBar(Color color) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      height: 6,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        height: 8,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
       ),
     );
   }

@@ -1,48 +1,52 @@
+// lib/screens/promotion/create_promotion_step2_screen.dart
+
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geocoding/geocoding.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wtg_front/models/promotion_type.dart';
-import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/services/location_service.dart';
 import 'create_promotion_step3_screen.dart';
 
-// --- Paleta de Cores ---
-const Color primaryAppColor = Color(0xFF6A00FF);
-const Color step2ActiveColor = Color(0xFF227093);
-const Color backgroundColor = Color(0xFFF8F8FA);
-const Color textFieldBackgroundColor = Colors.white;
-const Color placeholderColor = Color(0xFFE0E0E0);
-const Color darkTextColor = Color(0xFF2D3748);
+// --- PALETA DE CORES PADRONIZADA ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
+
+// Cores do Breadcrumb
+const Color step1Color = Color(0xFF218c74); // Verde
+const Color step2Color = Color(0xFFF6AD55); // Laranja
+const Color accentColor = Color(0xFFF6AD55); // Laranja para a etapa 2
+const Color step3Color = Color(0xFFF56565); // Vermelho
 
 class CreatePromotionStep2Screen extends StatefulWidget {
   final Map<String, dynamic> promotionData;
   const CreatePromotionStep2Screen({super.key, required this.promotionData});
 
   @override
-  State<CreatePromotionStep2Screen> createState() => _CreatePromotionStep2ScreenState();
+  State<CreatePromotionStep2Screen> createState() =>
+      _CreatePromotionStep2ScreenState();
 }
 
-class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen> {
+class _CreatePromotionStep2ScreenState
+    extends State<CreatePromotionStep2Screen> {
   final _formKey = GlobalKey<FormState>();
-  final _apiService = ApiService();
   final _locationService = LocationService();
   bool _isLoading = false;
-  bool _isFetchingCep = false; // Estado para o loading do CEP
+  bool _isFetchingCep = false;
 
   // Controladores e FocusNode
   final _cepController = TextEditingController();
   final _cepFocusNode = FocusNode();
   final _ufController = TextEditingController();
   final _logradouroController = TextEditingController();
-  final _neighborhoodController = TextEditingController(); // NOVO CONTROLLER
+  final _neighborhoodController = TextEditingController();
   final _cidadeController = TextEditingController();
   final _numeroController = TextEditingController();
   final _complementoController = TextEditingController();
@@ -56,11 +60,12 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
   final Set<Marker> _markers = {};
   bool _mapIsLoading = true;
 
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+
   @override
   void initState() {
     super.initState();
     _fetchCurrentUserLocation();
-    // Listener para buscar o CEP quando o foco sair do campo
     _cepFocusNode.addListener(() {
       if (!_cepFocusNode.hasFocus) {
         _fetchAddressFromCep();
@@ -107,39 +112,44 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['erro'] == true) throw Exception('CEP não encontrado.');
-        
+
         setState(() {
           _logradouroController.text = data['logradouro'] ?? '';
-          _neighborhoodController.text = data['bairro'] ?? ''; // Preenche o Bairro
+          _neighborhoodController.text = data['bairro'] ?? '';
           _cidadeController.text = data['localidade'] ?? '';
           _ufController.text = data['uf'] ?? '';
         });
-        
-        // Move o foco para o campo de número para o usuário preencher
+
         FocusScope.of(context).requestFocus(_numeroFocusNode);
         await _geocodeAndCenterMap();
       } else {
         throw Exception('Não foi possível buscar o CEP.');
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
     } finally {
       if (mounted) setState(() => _isFetchingCep = false);
     }
   }
-  
+
   Future<void> _geocodeAndCenterMap() async {
     try {
-      final String fullAddress = '${_logradouroController.text}, ${_cidadeController.text}, ${_ufController.text}';
+      final String fullAddress =
+          '${_logradouroController.text}, ${_cidadeController.text}, ${_ufController.text}';
       final locations = await locationFromAddress(fullAddress);
       if (locations.isNotEmpty) {
-        final newLatLng = LatLng(locations.first.latitude, locations.first.longitude);
+        final newLatLng =
+            LatLng(locations.first.latitude, locations.first.longitude);
         _updateMapLocation(newLatLng);
         _mapController?.animateCamera(
           CameraUpdate.newLatLngZoom(newLatLng, 16),
         );
       }
-    } catch (e) { /* Ignora erro se o geocoding falhar */ }
+    } catch (e) {
+      /* Ignora erro se o geocoding falhar */
+    }
   }
 
   void _updateMapLocation(LatLng latLng) {
@@ -163,14 +173,19 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
 
   void _continueToNextStep() {
     if (!_formKey.currentState!.validate()) return;
-    
+    if (_currentLatLng == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Aguarde o mapa carregar ou confirme a localização.')));
+      return;
+    }
+
     final fullPromotionData = {
       ...widget.promotionData,
       'addressData': {
         "address": _logradouroController.text,
         "number": int.tryParse(_numeroController.text) ?? 0,
         "complement": _complementoController.text,
-        "neighborhood": _neighborhoodController.text, // NOVO CAMPO ADICIONADO
+        "neighborhood": _neighborhoodController.text,
         "postalCode": _cepController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         "reference": _pontoReferenciaController.text,
         "obs": _observacoesController.text,
@@ -186,15 +201,23 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     ));
   }
 
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: backgroundColor,
+      backgroundColor: darkBackgroundColor,
       appBar: AppBar(
-        backgroundColor: backgroundColor,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back, color: darkTextColor), onPressed: () => Navigator.of(context).pop()),
-        title: const Text('cadastre seu endereço', style: TextStyle(color: darkTextColor, fontWeight: FontWeight.bold, fontSize: 22)),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
+            onPressed: () => Navigator.of(context).pop()),
+        title: const Text('Endereço do Rolê',
+            style: TextStyle(
+                color: primaryTextColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 22)),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -205,71 +228,121 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+              _buildBreadcrumbs(),
                 const SizedBox(height: 24),
-                _buildBreadcrumbs(currentStep: 2),
-                const SizedBox(height: 32),
+                _buildSectionTitle("Localização no Mapa",
+                    "Arraste o marcador para ajustar a posição exata do seu evento."),
                 _buildInteractiveMap(),
                 const SizedBox(height: 32),
-
-                // --- LAYOUT DOS INPUTS COM BAIRRO ---
+                _buildSectionTitle(
+                    "Detalhes do Endereço", "Preencha os campos abaixo."),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      flex: 3, 
-                      child: _buildTextField(
-                        label: 'CEP', 
-                        controller: _cepController, 
-                        keyboardType: TextInputType.number, 
-                        focusNode: _cepFocusNode,
-                        validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
-                        suffixIcon: _isFetchingCep ? const Padding(padding: EdgeInsets.all(12.0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))) : null,
-                      )
-                    ),
+                        flex: 3,
+                        child: _buildTextField(
+                          label: 'CEP *',
+                          controller: _cepController,
+                          keyboardType: TextInputType.number,
+                          focusNode: _cepFocusNode,
+                          icon: Icons.local_post_office_outlined,
+                          hint: '00000-000',
+                          validator: (v) =>
+                              v!.isEmpty ? 'Obrigatório' : null,
+                          suffixIcon: _isFetchingCep
+                              ? const Padding(
+                                  padding: EdgeInsets.all(12.0),
+                                  child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2, color: accentColor)))
+                              : null,
+                        )),
                     const SizedBox(width: 16),
-                    Expanded(flex: 2, child: _buildTextField(label: 'UF', controller: _ufController, inputFormatters: [LengthLimitingTextInputFormatter(2)], validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
+                    Expanded(
+                        flex: 2,
+                        child: _buildTextField(
+                            label: 'UF *',
+                            controller: _ufController,
+                            icon: Icons.public_outlined,
+                            hint: 'PE',
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(2)
+                            ],
+                            validator: (v) =>
+                                v!.isEmpty ? 'Obrigatório' : null)),
                   ],
                 ),
                 const SizedBox(height: 24),
-                
-                _buildTextField(label: 'Logradouro', controller: _logradouroController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                _buildTextField(
+                    label: 'Logradouro *',
+                    controller: _logradouroController,
+                    icon: Icons.location_on_outlined,
+                    hint: 'Ex: Av. Boa Viagem',
+                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
                 const SizedBox(height: 24),
-
-                // NOVO CAMPO DE BAIRRO
-                _buildTextField(label: 'Bairro', controller: _neighborhoodController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
+                _buildTextField(
+                    label: 'Bairro *',
+                    controller: _neighborhoodController,
+                    icon: Icons.holiday_village_outlined,
+                    hint: 'Ex: Boa Viagem',
+                    validator: (v) => v!.isEmpty ? 'Obrigatório' : null),
                 const SizedBox(height: 24),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(width: 100, child: _buildTextField(label: 'Número', controller: _numeroController, focusNode: _numeroFocusNode, keyboardType: TextInputType.number, inputFormatters: [LengthLimitingTextInputFormatter(5)], validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
+                    SizedBox(
+                        width: 100,
+                        child: _buildTextField(
+                            label: 'Número *',
+                            controller: _numeroController,
+                            focusNode: _numeroFocusNode,
+                            icon: Icons.pin,
+                            hint: '123',
+                            keyboardType: TextInputType.number,
+                            inputFormatters: [
+                              LengthLimitingTextInputFormatter(5)
+                            ],
+                            validator: (v) =>
+                                v!.isEmpty ? 'Obrigatório' : null)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildTextField(label: 'Cidade', controller: _cidadeController, validator: (v) => v!.isEmpty ? 'Obrigatório' : null)),
+                    Expanded(
+                        child: _buildTextField(
+                            label: 'Cidade *',
+                            controller: _cidadeController,
+                            icon: Icons.location_city_outlined,
+                            hint: 'Recife',
+                            validator: (v) =>
+                                v!.isEmpty ? 'Obrigatório' : null)),
                   ],
                 ),
                 const SizedBox(height: 24),
-                
-                _buildTextField(label: 'Complemento', controller: _complementoController, isOptional: true),
+                _buildTextField(
+                    label: 'Complemento',
+                    controller: _complementoController,
+                    icon: Icons.add_road_outlined,
+                    hint: 'Ex: Apto 101',
+                    isOptional: true),
                 const SizedBox(height: 24),
-
-                _buildTextField(label: 'Ponto de referência', controller: _pontoReferenciaController, isOptional: true),
+                _buildTextField(
+                    label: 'Ponto de referência',
+                    controller: _pontoReferenciaController,
+                    icon: Icons.assistant_photo_outlined,
+                    hint: 'Ex: Próximo à padaria',
+                    isOptional: true),
                 const SizedBox(height: 24),
-
-                _buildTextField(label: 'Observações', controller: _observacoesController, isOptional: true, maxLines: 3),
+                _buildTextField(
+                    label: 'Observações',
+                    controller: _observacoesController,
+                    icon: Icons.speaker_notes_outlined,
+                    hint: 'Ex: Entrada pelo portão lateral',
+                    isOptional: true,
+                    maxLines: 3),
                 const SizedBox(height: 40),
-                
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _continueToNextStep,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryAppColor,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  child: _isLoading 
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Continuar', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
+                _buildPrimaryButton(
+                    'Continuar', _continueToNextStep, _isLoading),
                 const SizedBox(height: 24),
               ],
             ),
@@ -278,24 +351,50 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
       ),
     );
   }
-  
+
+  Widget _buildSectionTitle(String title, String subtitle) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title,
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: primaryTextColor)),
+        const SizedBox(height: 8),
+        Text(subtitle,
+            style: const TextStyle(fontSize: 15, color: secondaryTextColor)),
+        const SizedBox(height: 16),
+        const Divider(color: fieldBorderColor),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
   Widget _buildInteractiveMap() {
     return AspectRatio(
       aspectRatio: 16 / 10,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: Container(
-          decoration: BoxDecoration(color: placeholderColor, borderRadius: BorderRadius.circular(16)),
+          decoration: BoxDecoration(
+              color: fieldBackgroundColor,
+              borderRadius: BorderRadius.circular(16)),
           child: _mapIsLoading
-              ? const Center(child: CircularProgressIndicator(color: step2ActiveColor))
+              ? const Center(
+                  child: CircularProgressIndicator(color: accentColor))
               : _currentLatLng == null
-                  ? const Center(child: Text('Não foi possível obter a localização.'))
+                  ? const Center(
+                      child: Text('Não foi possível obter a localização.',
+                          style: TextStyle(color: secondaryTextColor)))
                   : GoogleMap(
                       gestureRecognizers: <Factory<OneSequenceGestureRecognizer>>{
-                        Factory<EagerGestureRecognizer>(() => EagerGestureRecognizer()),
+                        Factory<EagerGestureRecognizer>(
+                            () => EagerGestureRecognizer()),
                       },
                       mapType: MapType.normal,
-                      initialCameraPosition: CameraPosition(target: _currentLatLng!, zoom: 16),
+                      initialCameraPosition:
+                          CameraPosition(target: _currentLatLng!, zoom: 16),
                       onMapCreated: (GoogleMapController controller) {
                         _mapController = controller;
                       },
@@ -307,31 +406,61 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
       ),
     );
   }
+  
+  // --- BREADCRUMB CORRIGIDO ---
+Widget _buildBreadcrumbs() {
+  return Align(
+    alignment: Alignment.centerRight, // garante alinhamento à direita
+    child: SizedBox(
+      width: MediaQuery.of(context).size.width * 0.4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end, // itens da Row à direita
+        children: [
+          _buildStep(
+              icon: Icons.storefront,
+              stepColor: step1Color,
+              isComplete: true),
+          _buildConnector(isComplete: true, color: accentColor),
+          _buildStep(
+              icon: Icons.location_on_outlined,
+              stepColor: accentColor,
+              isActive: true),
+          _buildConnector(isComplete: false, color: step3Color),
+          _buildStep(icon: Icons.check, stepColor: step3Color),
+        ],
+      ),
+    ),
+  );
+}
 
-  Widget _buildBreadcrumbs({required int currentStep}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _buildStepIndicator(step: 1, currentStep: currentStep, icon: Icons.storefront, activeColor: step2ActiveColor),
-        _buildConnector(isComplete: currentStep > 1, color: step2ActiveColor),
-        _buildStepIndicator(step: 2, currentStep: currentStep, icon: Icons.location_on_outlined, activeColor: step2ActiveColor),
-        _buildConnector(isComplete: currentStep > 2, color: step2ActiveColor),
-        _buildStepIndicator(step: 3, currentStep: currentStep, icon: Icons.check, activeColor: step2ActiveColor),
-      ],
-    );
-  }
+  Widget _buildStep({
+    required IconData icon,
+    required Color stepColor,
+    bool isActive = false,
+    bool isComplete = false,
+  }) {
+    final double iconSize = isActive ? 26.0 : 20.0;
+    final double containerSize = isActive ? 44.0 : 38.0;
+    final Color iconColor = isComplete
+        ? stepColor.withOpacity(0.4)
+        : (isActive ? Colors.white : secondaryTextColor.withOpacity(0.7));
 
-  Widget _buildStepIndicator({required int step, required int currentStep, required IconData icon, required Color activeColor}) {
-    final bool isActive = step == currentStep;
-    final bool isComplete = step < currentStep;
-    final Color color = isActive || isComplete ? activeColor : Colors.grey[400]!;
-
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 28),
-        const SizedBox(height: 8),
-        Text(step.toString(), style: TextStyle(color: color, fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
-      ],
+    return Container(
+      width: containerSize,
+      height: containerSize,
+      decoration: BoxDecoration(
+        color: isActive ? stepColor : Colors.transparent,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isComplete
+              ? stepColor.withOpacity(0.4)
+              : (isActive ? stepColor : fieldBorderColor),
+          width: 2,
+        ),
+      ),
+      child: Center(
+        child: Icon(icon, color: iconColor, size: iconSize),
+      ),
     );
   }
 
@@ -339,40 +468,86 @@ class _CreatePromotionStep2ScreenState extends State<CreatePromotionStep2Screen>
     return Expanded(
       child: Container(
         height: 2,
-        margin: const EdgeInsets.only(bottom: 28, left: 8, right: 8),
-        color: isComplete ? color : Colors.grey[300],
+        color: isComplete ? color.withOpacity(0.4) : fieldBorderColor,
       ),
     );
   }
 
-  Widget _buildTextField({required String label, required TextEditingController controller, TextInputType? keyboardType, List<TextInputFormatter>? inputFormatters, FocusNode? focusNode, bool isOptional = false, int maxLines = 1, String? Function(String?)? validator, Widget? suffixIcon}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, color: darkTextColor, fontSize: 16)),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          focusNode: focusNode,
-          keyboardType: keyboardType,
-          inputFormatters: inputFormatters,
-          maxLines: maxLines,
-          validator: validator ?? (value) {
+  Widget _buildTextField(
+      {required String label,
+      required TextEditingController controller,
+      required IconData icon,
+      String? hint,
+      TextInputType? keyboardType,
+      List<TextInputFormatter>? inputFormatters,
+      FocusNode? focusNode,
+      bool isOptional = false,
+      int maxLines = 1,
+      String? Function(String?)? validator,
+      Widget? suffixIcon}) {
+    return TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
+      maxLines: maxLines,
+      style: const TextStyle(color: primaryTextColor),
+      validator: validator ??
+          (value) {
             if (!isOptional && (value == null || value.isEmpty)) {
               return 'Campo obrigatório';
             }
             return null;
           },
-          decoration: InputDecoration(
-            suffixIcon: suffixIcon,
-            filled: true,
-            fillColor: textFieldBackgroundColor,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: placeholderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: step2ActiveColor, width: 2)),
-          ),
-        ),
-      ],
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        hintStyle: const TextStyle(color: fieldBorderColor),
+        labelStyle: const TextStyle(color: secondaryTextColor),
+        floatingLabelBehavior: FloatingLabelBehavior.always,
+        prefixIcon: Icon(icon, color: accentColor, size: 20),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: fieldBackgroundColor,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: fieldBorderColor)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: accentColor, width: 2)),
+      ),
+    );
+  }
+
+  Widget _buildPrimaryButton(
+      String text, VoidCallback onPressed, bool isLoading) {
+    return ElevatedButton(
+      onPressed: isLoading ? null : onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryButtonColor,
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 64),
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        elevation: 3,
+        shadowColor: primaryButtonColor.withOpacity(0.5),
+      ),
+      child: isLoading
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child:
+                  CircularProgressIndicator(color: Colors.white, strokeWidth: 3))
+          : Text(
+              text,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
     );
   }
 }

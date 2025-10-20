@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/reset_password/reset_password_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// --- CORES PADRONIZADAS (COPIADAS DE 2_token_screen.dart) ---
-const Color primaryButtonColor = Color(0xFFd74533);
-const Color messageTextColor = Color(0xFFec9724);
-const Color darkTextColor = Color(0xFF002956);
-const Color borderColor = Color(0xFFD1D5DB);
+// --- PALETA DE CORES PADRONIZADA ---
+const Color darkBackgroundColor = Color(0xFF1A202C);
+const Color primaryTextColor = Colors.white;
+const Color secondaryTextColor = Color(0xFFA0AEC0);
+const Color fieldBackgroundColor = Color(0xFF2D3748);
+const Color fieldBorderColor = Color(0xFF4A5568);
+const Color primaryButtonColor = Color(0xFFE53E3E);
+const Color accentColor = Color(0xFF4299E1); // Azul para destaque nos inputs
 
 class ResetTokenScreen extends StatefulWidget {
   final String email;
@@ -30,25 +33,18 @@ class _ResetTokenScreenState extends State<ResetTokenScreen> {
   int _timerSeconds = 90;
   Timer? _timer;
 
-  // --- CORES DINÂMICAS PARA A BORDA (COPIADO DE 2_token_screen.dart) ---
-  final List<Color> _borderColors = const [
-    Color(0xFFee5253),
-    Color(0xFF2e86de),
-    Color(0xFFff9f43),
-    Color(0xFF341f97),
-  ];
-
   @override
   void initState() {
     super.initState();
     startTimer();
-    // Adiciona listener para reconstruir a UI quando o foco mudar
     for (var node in _focusNodes) {
       node.addListener(() {
         setState(() {});
       });
     }
   }
+
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
 
   void startTimer() {
     setState(() {
@@ -107,7 +103,6 @@ class _ResetTokenScreenState extends State<ResetTokenScreen> {
     for (var controller in _controllers) {
       controller.dispose();
     }
-    // Remove o listener para evitar memory leaks
     for (var focusNode in _focusNodes) {
       focusNode.removeListener(() {
         setState(() {});
@@ -117,81 +112,80 @@ class _ResetTokenScreenState extends State<ResetTokenScreen> {
     super.dispose();
   }
 
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+
   @override
   Widget build(BuildContext context) {
     String timerText =
         '${(_timerSeconds ~/ 60).toString().padLeft(2, '0')}:${(_timerSeconds % 60).toString().padLeft(2, '0')}';
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: darkBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: darkBackgroundColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: darkTextColor),
+          icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32.0),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 24),
-              const Text('Digite o código de recuperação',
+              const SizedBox(height: 32),
+              const Text('Código de recuperação',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: FontWeight.bold,
-                    color: darkTextColor,
+                    color: primaryTextColor,
                   )),
-              const SizedBox(height: 8),
-              // --- WIDGET DE TEXTO ATUALIZADO PARA RichText ---
+              const SizedBox(height: 12),
               RichText(
                 text: TextSpan(
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: messageTextColor,
-                  ),
+                  style:
+                      const TextStyle(fontSize: 16, color: secondaryTextColor),
                   children: [
-                    const TextSpan(
-                        text:
-                            'Um código de recuperação foi enviado para o e-mail '),
+                    const TextSpan(text: 'Enviamos um código para o e-mail\n'),
                     TextSpan(
                       text: widget.email,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                      ),
+                          fontWeight: FontWeight.bold, color: primaryTextColor),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 40),
-              // --- INPUTS ATUALIZADOS COM ESTILO DINÂMICO ---
+              const SizedBox(height: 48),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: List.generate(4, (index) {
-                  final bool isFocused = _focusNodes[index].hasFocus;
-                  final Color focusedColor = _borderColors[index];
-
                   return SizedBox(
-                    width: 60,
-                    height: 60,
+                    width: 64,
+                    height: 64,
                     child: TextFormField(
                       controller: _controllers[index],
                       focusNode: _focusNodes[index],
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 1,
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor),
                       decoration: InputDecoration(
                         counterText: '',
+                        filled: true,
+                        fillColor: fieldBackgroundColor,
                         enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: borderColor)),
+                            borderSide:
+                                const BorderSide(color: fieldBorderColor)),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide:
-                              BorderSide(color: focusedColor, width: 2.0),
+                              const BorderSide(color: accentColor, width: 2.0),
                         ),
                       ),
                       onChanged: (value) {
@@ -206,21 +200,32 @@ class _ResetTokenScreenState extends State<ResetTokenScreen> {
                 }),
               ),
               const SizedBox(height: 24),
-              Center(child: Text(timerText)),
-              const SizedBox(height: 16),
-              // --- BOTÃO ATUALIZADO ---
+              Center(
+                  child: Text(
+                timerText,
+                style: const TextStyle(
+                    color: secondaryTextColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
+              )),
+              const Spacer(),
               ElevatedButton(
                 onPressed: _isLoading ? null : _continue,
                 style: ElevatedButton.styleFrom(
                     backgroundColor: primaryButtonColor,
-                    minimumSize: const Size(double.infinity, 50),
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 64),
+                    padding: const EdgeInsets.symmetric(vertical: 22),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12))),
+                        borderRadius: BorderRadius.circular(8))),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 3))
                     : const Text('Continuar',
                         style: TextStyle(
-                            color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.bold)),
               ),
@@ -231,12 +236,15 @@ class _ResetTokenScreenState extends State<ResetTokenScreen> {
                   child: Text(
                     'Reenviar código',
                     style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
                         color: _timerSeconds == 0
                             ? primaryButtonColor
-                            : Colors.grey),
+                            : secondaryTextColor.withOpacity(0.5)),
                   ),
                 ),
-              )
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
