@@ -60,7 +60,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     super.dispose();
   }
 
-  // --- TODA A LÓGICA DE FUNCIONALIDADE PERMANECE INALTERADA ---
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA DE VALIDAÇÃO OU PICKERS ---
 
   String? _validateCpf(String? cpf) {
     if (cpf == null || cpf.isEmpty) return 'CPF é obrigatório.';
@@ -225,6 +225,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
+  // --- MÉTODO DE SUBMISSÃO CORRIGIDO ---
   Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
@@ -266,6 +267,12 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           }
 
           apiResponse = await _apiService.updateUser(userUpdateData, cookie);
+          
+          // --- CORREÇÃO APLICADA AQUI ---
+          // A resposta de 'updateUser' não contém o cookie, então o adicionamos
+          // manualmente para garantir que a próxima tela tenha a sessão.
+          apiResponse['cookie'] = cookie;
+
         } else {
           widget.registrationData['userName'] =
               widget.registrationData['email'];
@@ -275,10 +282,13 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
               _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
           widget.registrationData['birthday'] = birthdateToSend;
           widget.registrationData['pronouns'] = _selectedPronoun;
+          
+          // A chamada de 'register' já retorna os dados do usuário e o cookie.
           apiResponse = await _apiService.register(widget.registrationData);
         }
 
         if (mounted && apiResponse != null) {
+          // Salva o cookie para sessões futuras
           final cookie = apiResponse['cookie'] as String?;
           if (cookie != null) {
             final prefs = await SharedPreferences.getInstance();
@@ -306,8 +316,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
-  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
-
+  // --- NENHUMA ALTERAÇÃO NA INTERFACE (BUILD METHOD) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -398,7 +407,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                           validator: (value) =>
                               value!.isEmpty ? 'Campo obrigatório' : null,
                         ),
-                        const Spacer(), // Ocupa o espaço restante
+                        const Spacer(),
                         const SizedBox(height: 24),
                         _buildPrimaryButton(
                           'Finalizar cadastro',
@@ -420,7 +429,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
   Widget _buildBreadcrumbs() {
     return SizedBox(
-      width: MediaQuery.of(context).size.width * 0.4, // Ocupa 40% da tela
+      width: MediaQuery.of(context).size.width * 0.4,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
@@ -455,7 +464,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     final double iconSize = isActive ? 28.0 : 22.0;
     final double containerSize = isActive ? 48.0 : 40.0;
     final Color iconColor = isComplete
-        ? stepColor.withOpacity(0.4) // Mais esmaecido
+        ? stepColor.withOpacity(0.4)
         : (isActive ? Colors.white : secondaryTextColor.withOpacity(0.7));
 
     return Container(
@@ -466,7 +475,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
         shape: BoxShape.circle,
         border: Border.all(
           color: isComplete
-              ? stepColor.withOpacity(0.4) // Borda também esmaecida
+              ? stepColor.withOpacity(0.4)
               : (isActive ? stepColor : fieldBorderColor),
           width: 2,
         ),
@@ -508,7 +517,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
               label,
               style: const TextStyle(
                 color: secondaryTextColor,
-                fontSize: 16.5, // LABEL UM POUCO MAIOR
+                fontSize: 16.5,
                 fontWeight: FontWeight.w600,
               ),
             ),

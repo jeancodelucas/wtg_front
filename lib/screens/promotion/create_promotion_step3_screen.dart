@@ -4,8 +4,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:wtg_front/screens/home_screen.dart';
+//import 'package:wtg_front/screens/home_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
+import 'package:wtg_front/screens/main_screen.dart';
 
 // --- PALETA DE CORES PADRONIZADA ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
@@ -100,7 +101,7 @@ class _CreatePromotionStep3ScreenState
             const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (context) => HomeScreen(loginResponse: widget.loginResponse),
+            builder: (context) => MainScreen(loginResponse: widget.loginResponse),
           ),
           (route) => false,
         );

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart';
 import 'package:wtg_front/screens/main_screen.dart';
 
+
 // --- PALETA DE CORES PADRONIZADA (dark mode) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
