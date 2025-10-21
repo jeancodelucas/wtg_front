@@ -3,48 +3,81 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// --- PALETA DE CORES ---
+// --- PALETA DE CORES (Consistente com o resto do app) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748);
-const Color accentColor = Color(0xFF6A00FF);
+const Color accentColor = Color(0xFF82589F);
 const Color commentsColor = Color(0xFF4299E1);
 const Color fieldBorderColor = Color(0xFF4A5568);
 
-class PromotionDetailScreen extends StatelessWidget {
+class PromotionDetailScreen extends StatefulWidget {
   final Map<String, dynamic> promotion;
 
   const PromotionDetailScreen({super.key, required this.promotion});
 
-  // Função para abrir o mapa
-  Future<void> _launchMaps(String address) async {
-    final query = Uri.encodeComponent(address);
-    final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url);
+  @override
+  State<PromotionDetailScreen> createState() => _PromotionDetailScreenState();
+}
+
+class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
+  int _currentImageIndex = 0;
+
+  Future<void> _openInGoogleMaps(double latitude, double longitude) async {
+    final Uri googleMapsUrl =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl);
     } else {
-      throw 'Não foi possível abrir o mapa para $address';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível abrir o Google Maps.'),
+          ),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final addressInfo = promotion['address'];
-    final isFree = promotion['free'] ?? false;
-    final ticketValue = promotion['ticketValue'];
-    final images = promotion['images'] as List<dynamic>?;
-    final imageUrl =
-        (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
+    final title = widget.promotion['title'] ?? 'Detalhes do Rolê';
 
-    final title = promotion['title'] ?? 'Nome do Rolê';
-    final description = promotion['description'] ?? 'Descrição não informada';
+    return Scaffold(
+      backgroundColor: darkBackgroundColor,
+      appBar: AppBar(
+        title: Text(title, style: const TextStyle(color: primaryTextColor)),
+        backgroundColor: fieldBackgroundColor,
+        iconTheme: const IconThemeData(color: primaryTextColor),
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: _buildEventDetailsCard(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventDetailsCard() {
+    final isFree = widget.promotion['free'] ?? false;
+    final ticketValue = widget.promotion['ticketValue'];
+    final images = widget.promotion['images'] as List<dynamic>? ?? [];
+    
+    // --- MAPEAMENTO CORRETO DOS DADOS ---
+    final description = widget.promotion['description'] ?? 'Descrição não informada.';
+    final addressInfo = widget.promotion['address'];
     final location = addressInfo != null
         ? '${addressInfo['address'] ?? 'Endereço'}, ${addressInfo['number'] ?? 'S/N'}'
         : 'Localização não informada';
-    final neighborhood = addressInfo?['neighborhood'] ?? 'Não informado';
     final complement = addressInfo?['complement'] ?? 'Não informado';
     final reference = addressInfo?['reference'] ?? 'Não informada';
+    // --- FIM DO MAPEAMENTO ---
+
+    final latitude = widget.promotion['latitude'] as double?;
+    final longitude = widget.promotion['longitude'] as double?;
 
     String priceText;
     if (isFree) {
@@ -56,84 +89,51 @@ class PromotionDetailScreen extends StatelessWidget {
       priceText = 'Consulte';
     }
 
-    return Scaffold(
-      backgroundColor: darkBackgroundColor,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250.0,
-            pinned: true,
-            backgroundColor: fieldBackgroundColor,
-            iconTheme: const IconThemeData(color: Colors.white),
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16.0,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.start,
-              ),
-              background: imageUrl != null
-                  ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      color: Colors.black.withOpacity(0.4),
-                      colorBlendMode: BlendMode.darken,
-                    )
-                  : Container(color: fieldBackgroundColor),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      _buildTag(
-                        text: priceText,
-                        color: isFree ? Colors.green : accentColor,
-                        icon: Icons.local_offer_outlined,
-                      ),
-                      _buildTag(
-                        text: 'Comentários',
-                        color: commentsColor,
-                        icon: Icons.chat_bubble_outline,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Descrição',
-                    style: TextStyle(
-                      color: primaryTextColor,
-                      fontSize: 18,
+    return Container(
+      decoration: BoxDecoration(
+        color: fieldBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (images.isNotEmpty) _buildImageCarousel(images),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.promotion['title'] ?? 'Nome do Rolê',
+                  style: const TextStyle(
+                      fontSize: 24,
                       fontWeight: FontWeight.bold,
+                      color: primaryTextColor),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildTag(
+                      text: priceText,
+                      color: isFree ? Colors.green : accentColor,
+                      icon: Icons.local_offer_outlined,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      color: secondaryTextColor,
-                      fontSize: 16,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Divider(color: fieldBorderColor),
-                  const SizedBox(height: 16),
-                  _buildDetailRow(Icons.location_on_outlined, 'Localização', location),
-                  _buildDetailRow(Icons.explore_outlined, 'Bairro', neighborhood),
-                  _buildDetailRow(Icons.segment_outlined, 'Complemento', complement),
-                  _buildDetailRow(Icons.assistant_photo_outlined, 'Referência', reference),
-                ],
-              ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: fieldBorderColor),
+                const SizedBox(height: 16),
+                
+                // --- INFORMAÇÕES CORRIGIDAS ---
+                _buildInfoRow(Icons.location_on_outlined, 'Localização', location,
+                    latitude: latitude, longitude: longitude),
+                _buildInfoRow(Icons.segment_outlined, 'Complemento', complement),
+                _buildInfoRow(Icons.description_outlined, 'Descrição', description),
+                _buildInfoRow(Icons.assistant_photo_outlined, 'Referência', reference),
+                // --- FIM DAS CORREÇÕES ---
+              ],
             ),
           ),
         ],
@@ -141,10 +141,70 @@ class PromotionDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildImageCarousel(List<dynamic> images) {
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+          child: SizedBox(
+            height: 250,
+            child: PageView.builder(
+              itemCount: images.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentImageIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                final imageUrl = images[index]['presignedUrl'];
+                return Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(child: CircularProgressIndicator());
+                  },
+                  errorBuilder: (context, error, stack) {
+                    return const Center(
+                        child: Icon(Icons.error, color: Colors.red));
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+        if (images.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(images.length, (index) {
+                return Container(
+                  width: 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _currentImageIndex == index
+                        ? primaryTextColor
+                        : secondaryTextColor,
+                  ),
+                );
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value,
+      {double? latitude, double? longitude}) {
+    
+    // Não renderiza a linha se o valor for "Não informado" ou vazio
     if (value == 'Não informado' || value.isEmpty) {
       return const SizedBox.shrink();
     }
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 16.0),
       child: Row(
@@ -156,30 +216,29 @@ class PromotionDetailScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                      color: secondaryTextColor,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500),
-                ),
+                Text(label,
+                    style:
+                        const TextStyle(color: secondaryTextColor, fontSize: 14)),
                 const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: primaryTextColor),
-                ),
+                Text(value,
+                    style:
+                        const TextStyle(color: primaryTextColor, fontSize: 16)),
               ],
             ),
           ),
+          if (latitude != null && longitude != null)
+            IconButton(
+              icon: const Icon(Icons.map, color: commentsColor),
+              onPressed: () => _openInGoogleMaps(latitude, longitude),
+              tooltip: 'Ver no mapa',
+            )
         ],
       ),
     );
   }
 
-  Widget _buildTag({required String text, required Color color, required IconData icon}) {
+  Widget _buildTag(
+      {required String text, required Color color, required IconData icon}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -192,7 +251,11 @@ class PromotionDetailScreen extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 14),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12)),
+          Text(
+            text,
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.bold, fontSize: 12),
+          ),
         ],
       ),
     );

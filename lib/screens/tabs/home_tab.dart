@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wtg_front/models/promotion_type.dart';
+import 'package:wtg_front/screens/promotion/promotion_detail_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/services/location_service.dart';
 
@@ -14,9 +15,8 @@ const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748); // Cor dos cards
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-const Color accentColor = Color(0xFF82589F); // Roxo para filtros e destaques
+const Color accentColor = Color(0xFF6A00FF); // Roxo para filtros e destaques
 const Color commentsColor = Color(0xFF4299E1); // Azul para comentários
-const Color mapColor = Color(0xFFF6AD55); //Icone do mapa
 
 class HomeTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -32,8 +32,11 @@ class _HomeTabState extends State<HomeTab> {
 
   bool _isLoading = true;
   String? _error;
-  List<dynamic> _promotions = [];
   Position? _currentPosition;
+
+  // --- MUDANÇA 1: Duas listas para gerenciar os dados ---
+  List<dynamic> _allPromotions = []; // Guarda TODOS os rolês da API
+  List<dynamic> _filteredPromotions = []; // Guarda os rolês filtrados para exibição
 
   // Filtros
   double _currentRadius = 10.0;
@@ -51,6 +54,7 @@ class _HomeTabState extends State<HomeTab> {
     await _fetchData();
   }
 
+  // --- MUDANÇA 2: _fetchData agora busca TUDO da API e depois aplica o filtro inicial ---
   Future<void> _fetchData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -67,20 +71,22 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     try {
-      final allPromotions = await _apiService.filterPromotions(
+      // Pede à API todos os eventos num raio bem grande para ter todos os dados localmente
+      final promotions = await _apiService.filterPromotions(
         cookie: cookie,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
-        radius: _currentRadius,
-        promotionType: _selectedType,
+        radius: 20000, // Raio grande para buscar "todos"
+        promotionType: null, // Sem filtro de tipo na busca inicial
       );
 
       if (mounted) {
         setState(() {
-          _promotions = allPromotions;
+          _allPromotions = promotions; // Salva a lista completa
           _isLoading = false;
           _error = null;
         });
+        _applyFilters(); // Aplica os filtros (se houver algum selecionado)
       }
     } catch (e) {
       if (mounted) {
@@ -92,8 +98,47 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+  // --- MUDANÇA 3: Nova função para filtrar os dados localmente, SEM chamar a API ---
+  void _applyFilters() {
+    if (!mounted) return;
+
+    List<dynamic> promotionsToShow = List.from(_allPromotions);
+
+    // 1. Filtro por tipo de promoção (categoria)
+    if (_selectedType != null) {
+      promotionsToShow = promotionsToShow.where((p) {
+        final typeString = p['type'] as String?;
+        // Compara o nome do enum com o texto vindo da API
+        return typeString?.toLowerCase() == _selectedType!.name.toLowerCase();
+      }).toList();
+    }
+
+    // 2. Filtro por raio de distância
+    if (_currentPosition != null) {
+      promotionsToShow = promotionsToShow.where((p) {
+        final lat = p['latitude'] as double?;
+        final lon = p['longitude'] as double?;
+
+        if (lat == null || lon == null) return false;
+
+        final distanceInMeters = Geolocator.distanceBetween(
+          _currentPosition!.latitude,
+          _currentPosition!.longitude,
+          lat,
+          lon,
+        );
+        final distanceInKm = distanceInMeters / 1000;
+        return distanceInKm <= _currentRadius;
+      }).toList();
+    }
+
+    // Atualiza o estado com a lista filtrada para a UI
+    setState(() {
+      _filteredPromotions = promotionsToShow;
+    });
+  }
+
   Future<void> _openInGoogleMaps(double latitude, double longitude) async {
-    // Monta a URL universal para o Google Maps
     final Uri googleMapsUrl =
         Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
 
@@ -131,7 +176,6 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildFiltersCard() {
-    // ... (O widget de filtros permanece o mesmo)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -176,8 +220,9 @@ class _HomeTabState extends State<HomeTab> {
             onChanged: (double value) {
               setState(() => _currentRadius = value);
             },
+            // --- MUDANÇA 4: Chama o filtro local ao invés de buscar na API ---
             onChangeEnd: (double value) {
-              _fetchData();
+              _applyFilters();
             },
           ),
           const Divider(color: fieldBorderColor, height: 1),
@@ -193,7 +238,7 @@ class _HomeTabState extends State<HomeTab> {
                   onSelected: () {
                     setState(() {
                       _selectedType = null;
-                      _fetchData();
+                      _applyFilters(); // <-- Chama o filtro local
                     });
                   },
                 ),
@@ -204,7 +249,7 @@ class _HomeTabState extends State<HomeTab> {
                     onSelected: () {
                       setState(() {
                         _selectedType = (_selectedType == type) ? null : type;
-                        _fetchData();
+                        _applyFilters(); // <-- Chama o filtro local
                       });
                     },
                   );
@@ -222,7 +267,6 @@ class _HomeTabState extends State<HomeTab> {
     required bool isSelected,
     required VoidCallback onSelected,
   }) {
-    // ... (O widget de chip permanece o mesmo)
     return Padding(
       padding: const EdgeInsets.only(right: 10.0),
       child: ActionChip(
@@ -258,20 +302,22 @@ class _HomeTabState extends State<HomeTab> {
       return Center(
           child: Text(_error!, style: const TextStyle(color: Colors.red)));
     }
-    if (_promotions.isEmpty) {
+    // --- MUDANÇA 5: Usa a lista filtrada ---
+    if (_filteredPromotions.isEmpty) {
       return const Center(
-          child: Text("Nenhum rolê encontrado.",
+          child: Text("Nenhum rolê encontrado com os filtros atuais.",
               style: TextStyle(color: secondaryTextColor, fontSize: 16)));
     }
     return RefreshIndicator(
-      onRefresh: _fetchData,
+      onRefresh: _fetchData, // Swipe down to refresh chama a API
       color: primaryButtonColor,
       backgroundColor: fieldBackgroundColor,
       child: ListView.builder(
         padding: const EdgeInsets.fromLTRB(16.0, 8.0, 16.0, 24.0),
-        itemCount: _promotions.length,
+        itemCount: _filteredPromotions.length,
         itemBuilder: (context, index) {
-          return _buildEventCard(_promotions[index] as Map<String, dynamic>);
+          return _buildEventCard(
+              _filteredPromotions[index] as Map<String, dynamic>);
         },
       ),
     );
@@ -279,10 +325,9 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _buildImageWidget(String? imageUrl) {
     return AspectRatio(
-      aspectRatio: 1.0, // Garante que a imagem seja sempre quadrada (crop 1:1)
+      aspectRatio: 1.0,
       child: ClipRRect(
-        borderRadius:
-            BorderRadius.circular(12.0), // Mantém o arredondamento
+        borderRadius: BorderRadius.circular(12.0),
         child: imageUrl != null
             ? Image.network(
                 imageUrl,
@@ -327,7 +372,7 @@ class _HomeTabState extends State<HomeTab> {
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
     final ticketValue = promotion['ticketValue'];
-    
+
     final images = promotion['images'] as List<dynamic>? ?? [];
     final imageUrl1 = images.isNotEmpty ? images[0]['presignedUrl'] : null;
     final imageUrl2 = images.length > 1 ? images[1]['presignedUrl'] : null;
@@ -353,102 +398,111 @@ class _HomeTabState extends State<HomeTab> {
       priceText = 'Consulte';
     }
 
-    return Card(
-      color: fieldBackgroundColor,
-      margin: const EdgeInsets.only(bottom: 20),
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 130,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    _buildImageWidget(imageUrl1),
-                    if (imageUrl2 != null) ...[
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PromotionDetailScreen(
+              promotion: promotion,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        color: fieldBackgroundColor,
+        margin: const EdgeInsets.only(bottom: 20),
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 130,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    children: [
+                      _buildImageWidget(imageUrl1),
+                      if (imageUrl2 != null) ...[
+                        const SizedBox(height: 8),
+                        _buildImageWidget(imageUrl2),
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: primaryTextColor),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       const SizedBox(height: 8),
-                      _buildImageWidget(imageUrl2),
-                    ]
-                  ],
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          _buildTag(
+                            text: priceText,
+                            color: isFree ? Colors.green : accentColor,
+                            icon: Icons.local_offer_outlined,
+                          ),
+                          _buildTag(
+                            text: 'Comentários',
+                            color: commentsColor,
+                            icon: Icons.chat_bubble_outline,
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      const Divider(color: fieldBorderColor, height: 8),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _buildDetailRow(Icons.location_on_outlined,
+                                'Localização', location),
+                          ),
+                          if (latitude != null && longitude != null)
+                            IconButton(
+                              icon: const Icon(Icons.map,
+                                  color: commentsColor, size: 24),
+                              onPressed: () =>
+                                  _openInGoogleMaps(latitude, longitude),
+                              tooltip: 'Ver no mapa',
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            )
+                        ],
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 4.0),
+                        child: Divider(color: fieldBorderColor, height: 1),
+                      ),
+                      _buildDetailRow(
+                          Icons.segment_outlined, 'Complemento', complement),
+                      _buildDetailRow(Icons.description_outlined, 'Descrição',
+                          description),
+                      _buildDetailRow(Icons.assistant_photo_outlined,
+                          'Referência', reference),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: primaryTextColor),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        _buildTag(
-                          text: priceText,
-                          color: isFree ? Colors.green : accentColor,
-                          icon: Icons.local_offer_outlined,
-                        ),
-                        _buildTag(
-                          text: 'Comentários',
-                          color: commentsColor,
-                          icon: Icons.chat_bubble_outline,
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    const Divider(color: fieldBorderColor, height: 8),
-                    const SizedBox(height: 8),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: _buildDetailRow(
-                              Icons.location_on_outlined, 'Localização', location),
-                        ),
-                        if (latitude != null && longitude != null)
-                          IconButton(
-                            icon: const Icon(Icons.map,
-                                color: mapColor, size: 24),
-                            onPressed: () =>
-                                _openInGoogleMaps(latitude, longitude),
-                            tooltip: 'Ver no mapa',
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          )
-                      ],
-                    ),
-                    
-                    // --- DIVISOR ADICIONADO AQUI ---
-                    const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 4.0),
-                      child: Divider(color: fieldBorderColor, height: 1),
-                    ),
-                    
-                    _buildDetailRow(
-                        Icons.segment_outlined, 'Complemento', complement),
-                    _buildDetailRow(
-                        Icons.description_outlined, 'Descrição', description),
-                    _buildDetailRow(
-                        Icons.assistant_photo_outlined, 'Referência', reference),
-                  ],
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
