@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/services/location_service.dart';
@@ -13,8 +14,9 @@ const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748); // Cor dos cards
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-const Color accentColor = Color(0xFF6A00FF); // Roxo para filtros e destaques
+const Color accentColor = Color(0xFF82589F); // Roxo para filtros e destaques
 const Color commentsColor = Color(0xFF4299E1); // Azul para comentários
+const Color mapColor = Color(0xFFF6AD55); //Icone do mapa
 
 class HomeTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -90,20 +92,35 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+  Future<void> _openInGoogleMaps(double latitude, double longitude) async {
+    // Monta a URL universal para o Google Maps
+    final Uri googleMapsUrl =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+
+    if (await canLaunchUrl(googleMapsUrl)) {
+      await launchUrl(googleMapsUrl);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível abrir o Google Maps.'),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: darkBackgroundColor,
-      // --- ESTRUTURA ATUALIZADA PARA FILTRO ESTÁTICO ---
       body: SafeArea(
         child: Column(
           children: [
-            // Filtros ficam aqui, fora da área de rolagem
             Padding(
               padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
               child: _buildFiltersCard(),
             ),
-            // A lista de promoções ocupa o resto da tela e é rolável
             Expanded(
               child: _buildContent(),
             ),
@@ -113,8 +130,8 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  // --- WIDGET DE FILTROS UNIFICADO EM UM CARD ---
   Widget _buildFiltersCard() {
+    // ... (O widget de filtros permanece o mesmo)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -124,10 +141,10 @@ class _HomeTabState extends State<HomeTab> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // --- Seção do Raio ---
           Row(
             children: [
-              const Icon(Icons.radar_outlined, color: secondaryTextColor, size: 20),
+              const Icon(Icons.radar_outlined,
+                  color: secondaryTextColor, size: 20),
               const SizedBox(width: 12),
               const Text(
                 'Raio de busca',
@@ -165,7 +182,6 @@ class _HomeTabState extends State<HomeTab> {
           ),
           const Divider(color: fieldBorderColor, height: 1),
           const SizedBox(height: 12),
-          // --- Seção das Categorias ---
           SizedBox(
             height: 40,
             child: ListView(
@@ -201,12 +217,12 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  // --- WIDGET PARA OS CHIPS DE CATEGORIA (NOVO DESIGN) ---
   Widget _buildCategoryChip({
     required String label,
     required bool isSelected,
     required VoidCallback onSelected,
   }) {
+    // ... (O widget de chip permanece o mesmo)
     return Padding(
       padding: const EdgeInsets.only(right: 10.0),
       child: ActionChip(
@@ -261,13 +277,60 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _buildImageWidget(String? imageUrl) {
+    return AspectRatio(
+      aspectRatio: 1.0, // Garante que a imagem seja sempre quadrada (crop 1:1)
+      child: ClipRRect(
+        borderRadius:
+            BorderRadius.circular(12.0), // Mantém o arredondamento
+        child: imageUrl != null
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primaryButtonColor,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: fieldBorderColor.withOpacity(0.5),
+                    child: const Center(
+                      child: Icon(
+                        Icons.error_outline,
+                        color: secondaryTextColor,
+                        size: 30,
+                      ),
+                    ),
+                  );
+                },
+              )
+            : Container(
+                color: fieldBorderColor.withOpacity(0.5),
+                child: const Center(
+                  child: Icon(
+                    Icons.image_not_supported_outlined,
+                    color: secondaryTextColor,
+                    size: 30,
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
   Widget _buildEventCard(Map<String, dynamic> promotion) {
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
     final ticketValue = promotion['ticketValue'];
-    final images = promotion['images'] as List<dynamic>?;
-    final imageUrl =
-        (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
+    
+    final images = promotion['images'] as List<dynamic>? ?? [];
+    final imageUrl1 = images.isNotEmpty ? images[0]['presignedUrl'] : null;
+    final imageUrl2 = images.length > 1 ? images[1]['presignedUrl'] : null;
 
     final title = promotion['title'] ?? 'Nome do Rolê';
     final description = promotion['description'] ?? 'Descrição não informada';
@@ -276,6 +339,9 @@ class _HomeTabState extends State<HomeTab> {
         : 'Localização não informada';
     final complement = addressInfo?['complement'] ?? 'Não informado';
     final reference = addressInfo?['reference'] ?? 'Não informada';
+
+    final latitude = promotion['latitude'] as double?;
+    final longitude = promotion['longitude'] as double?;
 
     String priceText;
     if (isFree) {
@@ -298,37 +364,18 @@ class _HomeTabState extends State<HomeTab> {
           children: [
             SizedBox(
               width: 130,
-              child: imageUrl != null
-                  ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: primaryButtonColor,
-                          ),
-                        );
-                      },
-                      errorBuilder: (context, error, stackTrace) {
-                        print('Erro ao carregar imagem: $error');
-                        return const Center(
-                          child: Icon(
-                            Icons.error_outline,
-                            color: fieldBorderColor,
-                            size: 40,
-                          ),
-                        );
-                      },
-                    )
-                  : const Center(
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: fieldBorderColor,
-                        size: 40,
-                      ),
-                    ),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    _buildImageWidget(imageUrl1),
+                    if (imageUrl2 != null) ...[
+                      const SizedBox(height: 8),
+                      _buildImageWidget(imageUrl2),
+                    ]
+                  ],
+                ),
+              ),
             ),
             Expanded(
               child: Padding(
@@ -346,7 +393,6 @@ class _HomeTabState extends State<HomeTab> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 8),
-                    // --- TAGS ATUALIZADAS ---
                     Wrap(
                       spacing: 8,
                       runSpacing: 4,
@@ -363,11 +409,35 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                       ],
                     ),
+                    const Spacer(),
+                    const Divider(color: fieldBorderColor, height: 8),
                     const SizedBox(height: 8),
-                    const Divider(color: fieldBorderColor),
-                    const SizedBox(height: 8),
-                    _buildDetailRow(
-                        Icons.location_on_outlined, 'Localização', location),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildDetailRow(
+                              Icons.location_on_outlined, 'Localização', location),
+                        ),
+                        if (latitude != null && longitude != null)
+                          IconButton(
+                            icon: const Icon(Icons.map,
+                                color: mapColor, size: 24),
+                            onPressed: () =>
+                                _openInGoogleMaps(latitude, longitude),
+                            tooltip: 'Ver no mapa',
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          )
+                      ],
+                    ),
+                    
+                    // --- DIVISOR ADICIONADO AQUI ---
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4.0),
+                      child: Divider(color: fieldBorderColor, height: 1),
+                    ),
+                    
                     _buildDetailRow(
                         Icons.segment_outlined, 'Complemento', complement),
                     _buildDetailRow(
