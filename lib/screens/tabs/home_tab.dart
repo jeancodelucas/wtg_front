@@ -94,50 +94,58 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: darkBackgroundColor,
+      // --- ESTRUTURA ATUALIZADA PARA FILTRO ESTÁTICO ---
       body: SafeArea(
-        child: NestedScrollView(
-          headerSliverBuilder: (context, innerBoxIsScrolled) {
-            return [
-              SliverAppBar(
-                backgroundColor: darkBackgroundColor,
-                floating: true,
-                pinned: false,
-                snap: true,
-                expandedHeight: 140.0,
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Padding(
-                    padding: const EdgeInsets.only(top: 16.0),
-                    child: _buildFilters(),
-                  ),
-                ),
-              ),
-            ];
-          },
-          body: _buildContent(),
+        child: Column(
+          children: [
+            // Filtros ficam aqui, fora da área de rolagem
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+              child: _buildFiltersCard(),
+            ),
+            // A lista de promoções ocupa o resto da tela e é rolável
+            Expanded(
+              child: _buildContent(),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildFilters() {
+  // --- WIDGET DE FILTROS UNIFICADO EM UM CARD ---
+  Widget _buildFiltersCard() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: fieldBackgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
+          // --- Seção do Raio ---
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Distância',
-                  style: TextStyle(
-                      color: primaryTextColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500)),
-              Text('${_currentRadius.toInt()} km',
-                  style: const TextStyle(
-                      color: secondaryTextColor,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500)),
+              const Icon(Icons.radar_outlined, color: secondaryTextColor, size: 20),
+              const SizedBox(width: 12),
+              const Text(
+                'Raio de busca',
+                style: TextStyle(
+                  color: secondaryTextColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${_currentRadius.toInt()} km',
+                style: const TextStyle(
+                  color: primaryButtonColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           Slider(
@@ -146,7 +154,7 @@ class _HomeTabState extends State<HomeTab> {
             max: 50,
             divisions: 49,
             activeColor: primaryButtonColor,
-            inactiveColor: fieldBackgroundColor,
+            inactiveColor: fieldBorderColor,
             label: '${_currentRadius.toInt()} km',
             onChanged: (double value) {
               setState(() => _currentRadius = value);
@@ -155,65 +163,72 @@ class _HomeTabState extends State<HomeTab> {
               _fetchData();
             },
           ),
+          const Divider(color: fieldBorderColor, height: 1),
+          const SizedBox(height: 12),
+          // --- Seção das Categorias ---
           SizedBox(
             height: 40,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
-                FilterChip(
-                  label: const Text("Todos"),
-                  selected: _selectedType == null,
-                  onSelected: (bool selected) {
+                _buildCategoryChip(
+                  label: "Todos",
+                  isSelected: _selectedType == null,
+                  onSelected: () {
                     setState(() {
                       _selectedType = null;
                       _fetchData();
                     });
                   },
-                  backgroundColor: fieldBackgroundColor,
-                  selectedColor: accentColor,
-                  labelStyle: TextStyle(
-                      color:
-                          _selectedType == null ? Colors.white : secondaryTextColor,
-                      fontWeight: FontWeight.w600),
-                  shape: StadiumBorder(
-                      side: BorderSide(
-                          color: _selectedType == null
-                              ? accentColor
-                              : fieldBorderColor)),
-                  showCheckmark: false,
                 ),
-                const SizedBox(width: 8),
                 ...PromotionType.values.map((type) {
-                  final isSelected = _selectedType == type;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: FilterChip(
-                      label: Text(type.displayName),
-                      selected: isSelected,
-                      onSelected: (bool selected) {
-                        setState(() {
-                          _selectedType = selected ? type : null;
-                          _fetchData();
-                        });
-                      },
-                      backgroundColor: fieldBackgroundColor,
-                      selectedColor: accentColor,
-                      labelStyle: TextStyle(
-                          color:
-                              isSelected ? Colors.white : secondaryTextColor,
-                          fontWeight: FontWeight.w600),
-                      shape: StadiumBorder(
-                          side: BorderSide(
-                              color:
-                                  isSelected ? accentColor : fieldBorderColor)),
-                      showCheckmark: false,
-                    ),
+                  return _buildCategoryChip(
+                    label: type.displayName,
+                    isSelected: _selectedType == type,
+                    onSelected: () {
+                      setState(() {
+                        _selectedType = (_selectedType == type) ? null : type;
+                        _fetchData();
+                      });
+                    },
                   );
                 }),
               ],
             ),
-          )
+          ),
         ],
+      ),
+    );
+  }
+
+  // --- WIDGET PARA OS CHIPS DE CATEGORIA (NOVO DESIGN) ---
+  Widget _buildCategoryChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 10.0),
+      child: ActionChip(
+        onPressed: onSelected,
+        label: Text(label),
+        avatar: isSelected
+            ? const Icon(Icons.check_circle_outline,
+                color: Colors.white, size: 18)
+            : null,
+        backgroundColor: isSelected ? accentColor : fieldBackgroundColor,
+        labelStyle: TextStyle(
+          color: isSelected ? Colors.white : secondaryTextColor,
+          fontWeight: FontWeight.bold,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isSelected ? accentColor : fieldBorderColor,
+            width: 1.5,
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
   }
