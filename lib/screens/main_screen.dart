@@ -28,10 +28,9 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   late final List<Widget> _tabs;
 
-  // --- ÍCONES ATUALIZADOS ---
   final iconList = <IconData>[
     Icons.home_filled,
-    Icons.star_rounded, // Ícone alterado
+    Icons.star_rounded,
     Icons.person,
   ];
   
@@ -51,17 +50,7 @@ class _MainScreenState extends State<MainScreen> {
     ];
   }
 
-  Future<void> _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-
-    if (mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const AuthScreen()),
-        (Route<dynamic> route) => false,
-      );
-    }
-  }
+  // A função de logout foi movida para a profile_tab.dart
 
   @override
   Widget build(BuildContext context) {
@@ -79,19 +68,15 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_outlined, color: secondaryTextColor),
-            tooltip: 'Sair',
-            onPressed: _logout,
-          ),
+        // --- BOTÃO DE LOGOUT REMOVIDO DAQUI ---
+        actions: const [
+          SizedBox(width: 56) // Espaçamento para manter o título centralizado
         ],
       ),
       body: IndexedStack(
         index: _currentIndex,
         children: _tabs,
       ),
-      // --- BOTTOM NAVIGATION BAR ATUALIZADA COM EFEITO E DESTAQUE ---
       bottomNavigationBar: AnimatedBottomNavigationBar.builder(
         itemCount: iconList.length,
         tabBuilder: (int index, bool isActive) {
@@ -121,10 +106,9 @@ class _MainScreenState extends State<MainScreen> {
         activeIndex: _currentIndex,
         gapLocation: GapLocation.none,
         notchSmoothness: NotchSmoothness.softEdge,
-        leftCornerRadius: 32, // Bordas mais arredondadas
-        rightCornerRadius: 32, // Bordas mais arredondadas
+        leftCornerRadius: 32,
+        rightCornerRadius: 32,
         onTap: (index) => setState(() => _currentIndex = index),
-        // Sombra suave para um efeito flutuante
         shadow: BoxShadow(
           color: Colors.black.withOpacity(0.3),
           blurRadius: 10,

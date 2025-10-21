@@ -429,4 +429,31 @@ class ApiService {
       throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
+
+Future<String?> uploadProfilePicture(File image, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/users/picture/upload');
+    var request = http.MultipartRequest('POST', uri);
+    request.headers['Cookie'] = cookie;
+
+    final mimeType = lookupMimeType(image.path);
+    final mediaType = mimeType != null ? MediaType.parse(mimeType) : null;
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'picture', // Nome do campo esperado pelo backend (@RequestParam("picture"))
+        image.path,
+        contentType: mediaType,
+      ),
+    );
+
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      final responseBody = await response.stream.bytesToString();
+      final data = jsonDecode(responseBody);
+      return data['pictureUrl']; // O backend retorna a chave do S3 como 'pictureUrl'
+    } else {
+      final responseBody = await response.stream.bytesToString();
+      throw Exception('Falha ao enviar a imagem: $responseBody');
+    }
+  }
 }

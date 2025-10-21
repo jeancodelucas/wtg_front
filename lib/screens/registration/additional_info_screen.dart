@@ -7,7 +7,9 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/screens/registration_success_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
-import 'dart:io' show Platform;
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+
 
 // --- PALETA DE CORES (ESCURA E VIBRANTE) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
@@ -47,6 +49,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   String? _selectedPronoun;
   bool _isLoading = false;
   DocumentType? _selectedDocumentType;
+  File? _selectedImageFile;
+  String? _networkImageUrl;
 
   final List<String> _pronouns = [
     'Ele/Dele',
@@ -57,6 +61,16 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    // Verifica se já existe uma URL de imagem (vinda do SSO)
+    final pictureUrl = widget.registrationData['user']?['pictureUrl'];
+    if (pictureUrl != null) {
+      _networkImageUrl = pictureUrl;
+    }
+  }
+
+  @override
   void dispose() {
     _nicknameController.dispose();
     _cpfController.dispose();
@@ -65,6 +79,18 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     _pronounController.dispose();
     super.dispose();
   }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImageFile = File(pickedFile.path);
+        _networkImageUrl = null; // Prioriza a imagem local selecionada
+      });
+    }
+  }
+
 
   // --- LÓGICAS DE VALIDAÇÃO E PICKERS (inalteradas) ---
   String? _validateCpf(String? cpf) {
@@ -251,89 +277,64 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
   
-  Future<void> _submitFinalRegistration() async {
+Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      String birthdateToSend = '';
-      if (_birthdayController.text.isNotEmpty) {
-        try {
-          DateTime parsedDate =
-              DateFormat('dd/MM/yyyy').parse(_birthdayController.text);
-          birthdateToSend = DateFormat('yyyy-MM-dd').format(parsedDate);
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Formato de data inválido.')),
-            );
-            setState(() => _isLoading = false);
-            return;
-          }
-        }
-      }
-
-      final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
-      Map<String, dynamic>? apiResponse;
-      
-      // --- LÓGICA DE PRONOME ATUALIZADA ---
-      final String pronounToSend = _selectedDocumentType == DocumentType.cnpj
-          ? 'Ele/Dele'
-          : _selectedPronoun ?? '';
-
-      final Map<String, dynamic> registrationPayload = {
-        ...widget.registrationData,
-        'userName': widget.registrationData['email'],
-        'firstName': _nicknameController.text,
-        'fullName': _nicknameController.text,
-        'birthday': birthdateToSend,
-        'pronouns': pronounToSend,
-        'cpf': _selectedDocumentType == DocumentType.cpf
-            ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '')
-            : null,
-        'cnpj': _selectedDocumentType == DocumentType.cnpj
-            ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '')
-            : null,
-      };
+      String? pictureUrl = _networkImageUrl;
 
       try {
-        if (isSsoUser) {
-           final userUpdateData = {
-            "firstName": _nicknameController.text,
-            "cpf": _selectedDocumentType == DocumentType.cpf
-                ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '')
-                : null,
-            "cnpj": _selectedDocumentType == DocumentType.cnpj
-                ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '')
-                : null,
-            "birthday": birthdateToSend,
-            "pronouns": pronounToSend,
-          };
+        final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
+        String? sessionCookie = widget.registrationData['cookie'];
+        
+        if (sessionCookie == null && !isSsoUser) {
+           final tempPayload = { ...widget.registrationData };
+           tempPayload['firstName'] = _nicknameController.text;
+           tempPayload['fullName'] = _nicknameController.text;
+           tempPayload['cpf'] = _selectedDocumentType == DocumentType.cpf ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '') : null;
+           tempPayload['cnpj'] = _selectedDocumentType == DocumentType.cnpj ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '') : null;
 
-          final cookie = widget.registrationData['cookie'] as String?;
-          if (cookie == null) {
-            throw Exception(
-                "Sessão de autenticação não encontrada para usuário SSO.");
-          }
+           final initialResponse = await _apiService.register(tempPayload);
+           sessionCookie = initialResponse['cookie'];
+           if (sessionCookie == null) throw Exception("Falha ao obter sessão após o registro inicial.");
+        }
+        
+        if (sessionCookie == null) throw Exception("Sessão de usuário inválida.");
 
-          apiResponse = await _apiService.updateUser(userUpdateData, cookie);
-          apiResponse['cookie'] = cookie;
-
-        } else {
-          apiResponse = await _apiService.register(registrationPayload);
+        if (_selectedImageFile != null) {
+          pictureUrl = await _apiService.uploadProfilePicture(_selectedImageFile!, sessionCookie);
         }
 
-        if (mounted && apiResponse != null) {
-          final cookie = apiResponse['cookie'] as String?;
-          if (cookie != null) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('session_cookie', cookie);
-          }
+        String birthdateToSend = '';
+        if (_birthdayController.text.isNotEmpty) {
+          DateTime parsedDate = DateFormat('dd/MM/yyyy').parse(_birthdayController.text);
+          birthdateToSend = DateFormat('yyyy-MM-dd').format(parsedDate);
+        }
+        
+        final String pronounToSend = _selectedDocumentType == DocumentType.cnpj ? 'Ele/Dele' : _selectedPronoun ?? '';
+        
+        final finalUserData = {
+          "firstName": _nicknameController.text,
+          "cpf": _selectedDocumentType == DocumentType.cpf ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '') : null,
+          "cnpj": _selectedDocumentType == DocumentType.cnpj ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '') : null,
+          "birthday": birthdateToSend,
+          "pronouns": pronounToSend,
+          "pictureUrl": pictureUrl, 
+        };
 
+        final updatedUser = await _apiService.updateUser(finalUserData, sessionCookie);
+        
+        final apiResponse = {
+          'user': updatedUser,
+          'cookie': sessionCookie,
+        };
+
+        if (mounted) {
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
                 builder: (context) =>
-                    RegistrationSuccessScreen(userData: apiResponse!)),
+                    RegistrationSuccessScreen(userData: apiResponse)),
             (route) => false,
           );
         }
@@ -383,6 +384,8 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 16),
+                        _buildProfilePictureUploader(), // WIDGET DA FOTO
+                        const SizedBox(height: 32),
                         const Text(
                           'Queremos te conhecer!',
                           style: TextStyle(
@@ -460,7 +463,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                         ),
                         const SizedBox(height: 20),
 
-                        // --- CAMPO DE PRONOME CONDICIONAL ---
                         AnimatedSwitcher(
                            duration: const Duration(milliseconds: 300),
                            transitionBuilder: (child, animation) {
@@ -502,6 +504,44 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
             );
           },
         ),
+      ),
+    );
+  }
+  
+  // --- NOVO WIDGET PARA A FOTO DE PERFIL ---
+  Widget _buildProfilePictureUploader() {
+    return Center(
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: fieldBackgroundColor,
+            backgroundImage: _selectedImageFile != null
+                ? FileImage(_selectedImageFile!)
+                : (_networkImageUrl != null
+                    ? NetworkImage(_networkImageUrl!)
+                    : null) as ImageProvider?,
+            child: (_selectedImageFile == null && _networkImageUrl == null)
+                ? const Icon(Icons.person, size: 50, color: secondaryTextColor)
+                : null,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: GestureDetector(
+              onTap: _pickImage,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: infoStepColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: darkBackgroundColor, width: 2),
+                ),
+                child: const Icon(Icons.edit, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
