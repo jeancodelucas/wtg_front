@@ -14,6 +14,7 @@ const Color fieldBackgroundColor = Color(0xFF2D3748); // Cor dos cards
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
 const Color accentColor = Color(0xFF6A00FF); // Roxo para filtros e destaques
+const Color commentsColor = Color(0xFF4299E1); // Azul para comentários
 
 class HomeTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -253,9 +254,6 @@ class _HomeTabState extends State<HomeTab> {
     final imageUrl =
         (images != null && images.isNotEmpty) ? images[0]['presignedUrl'] : null;
 
-    // LINHA DE DIAGNÓSTICO: Verifique o console para ver a URL
-    print('Carregando Card para "${promotion['title']}". URL da Imagem: $imageUrl');
-
     final title = promotion['title'] ?? 'Nome do Rolê';
     final description = promotion['description'] ?? 'Descrição não informada';
     final location = addressInfo != null
@@ -283,7 +281,6 @@ class _HomeTabState extends State<HomeTab> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- WIDGET DE IMAGEM ATUALIZADO ---
             SizedBox(
               width: 130,
               child: imageUrl != null
@@ -324,26 +321,30 @@ class _HomeTabState extends State<HomeTab> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Text(
+                      title,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: primaryTextColor),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    // --- TAGS ATUALIZADAS ---
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: primaryTextColor),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
                         _buildTag(
                           text: priceText,
                           color: isFree ? Colors.green : accentColor,
                           icon: Icons.local_offer_outlined,
+                        ),
+                        _buildTag(
+                          text: 'Comentários',
+                          color: commentsColor,
+                          icon: Icons.chat_bubble_outline,
                         ),
                       ],
                     ),

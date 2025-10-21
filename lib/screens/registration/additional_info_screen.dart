@@ -22,6 +22,9 @@ const Color verificationStepColor = Color(0xFF4299E1);
 const Color passwordStepColor = Color(0xFFF6AD55);
 const Color infoStepColor = Color(0xFFF56565);
 
+// --- ENUM PARA TIPO DE DOCUMENTO ---
+enum DocumentType { cpf, cnpj }
+
 class AdditionalInfoScreen extends StatefulWidget {
   final Map<String, dynamic> registrationData;
 
@@ -37,11 +40,13 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
   final _nicknameController = TextEditingController();
   final _cpfController = TextEditingController();
+  final _cnpjController = TextEditingController();
   final _birthdayController = TextEditingController();
   final _pronounController = TextEditingController();
 
   String? _selectedPronoun;
   bool _isLoading = false;
+  DocumentType? _selectedDocumentType;
 
   final List<String> _pronouns = [
     'Ele/Dele',
@@ -55,19 +60,18 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   void dispose() {
     _nicknameController.dispose();
     _cpfController.dispose();
+    _cnpjController.dispose();
     _birthdayController.dispose();
     _pronounController.dispose();
     super.dispose();
   }
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA DE VALIDAÇÃO OU PICKERS ---
-
+  // --- LÓGICAS DE VALIDAÇÃO E PICKERS (inalteradas) ---
   String? _validateCpf(String? cpf) {
     if (cpf == null || cpf.isEmpty) return 'CPF é obrigatório.';
     String numbers = cpf.replaceAll(RegExp(r'[^0-9]'), '');
     if (numbers.length != 11) return 'CPF inválido (deve conter 11 dígitos).';
     if (RegExp(r'^(\d)\1*$').hasMatch(numbers)) return 'CPF inválido.';
-
     List<int> digits =
         numbers.runes.map((r) => int.parse(String.fromCharCode(r))).toList();
     int calc(int end) {
@@ -78,11 +82,34 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
       int result = (sum * 10) % 11;
       return result == 10 ? 0 : result;
     }
-
     if (calc(9) != digits[9] || calc(10) != digits[10]) return 'CPF inválido.';
     return null;
   }
 
+  String? _validateCnpj(String? cnpj) {
+    if (cnpj == null || cnpj.isEmpty) return 'CNPJ é obrigatório.';
+    String numbers = cnpj.replaceAll(RegExp(r'[^0-9]'), '');
+    if (numbers.length != 14) return 'CNPJ inválido (deve conter 14 dígitos).';
+    if (RegExp(r'^(\d)\1*$').hasMatch(numbers)) return 'CNPJ inválido.';
+
+    List<int> digits =
+        numbers.runes.map((r) => int.parse(String.fromCharCode(r))).toList();
+    List<int> weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    List<int> weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    int calc(List<int> weights) {
+      int sum = 0;
+      for (int i = 0; i < weights.length; i++) {
+        sum += digits[i] * weights[i];
+      }
+      int result = sum % 11;
+      return result < 2 ? 0 : 11 - result;
+    }
+    if (calc(weights1) != digits[12] || calc(weights2) != digits[13]) {
+      return 'CNPJ inválido.';
+    }
+    return null;
+  }
+  
   Future<void> _selectDate(BuildContext context) async {
     FocusScope.of(context).unfocus();
     if (Platform.isIOS) {
@@ -152,7 +179,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   void _showIOSPronounPicker() {
     final initialIndex =
         _selectedPronoun != null ? _pronouns.indexOf(_selectedPronoun!) : 0;
-
     showCupertinoModalPopup(
       context: context,
       builder: (_) => Container(
@@ -224,8 +250,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
       },
     );
   }
-
-  // --- MÉTODO DE SUBMISSÃO CORRIGIDO ---
+  
   Future<void> _submitFinalRegistration() async {
     FocusScope.of(context).unfocus();
     if (_formKey.currentState!.validate()) {
@@ -250,14 +275,39 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
 
       final isSsoUser = widget.registrationData['isSsoUser'] ?? false;
       Map<String, dynamic>? apiResponse;
+      
+      // --- LÓGICA DE PRONOME ATUALIZADA ---
+      final String pronounToSend = _selectedDocumentType == DocumentType.cnpj
+          ? 'Ele/Dele'
+          : _selectedPronoun ?? '';
+
+      final Map<String, dynamic> registrationPayload = {
+        ...widget.registrationData,
+        'userName': widget.registrationData['email'],
+        'firstName': _nicknameController.text,
+        'fullName': _nicknameController.text,
+        'birthday': birthdateToSend,
+        'pronouns': pronounToSend,
+        'cpf': _selectedDocumentType == DocumentType.cpf
+            ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '')
+            : null,
+        'cnpj': _selectedDocumentType == DocumentType.cnpj
+            ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '')
+            : null,
+      };
 
       try {
         if (isSsoUser) {
-          final userUpdateData = {
+           final userUpdateData = {
             "firstName": _nicknameController.text,
-            "cpf": _cpfController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+            "cpf": _selectedDocumentType == DocumentType.cpf
+                ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '')
+                : null,
+            "cnpj": _selectedDocumentType == DocumentType.cnpj
+                ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '')
+                : null,
             "birthday": birthdateToSend,
-            "pronouns": _selectedPronoun,
+            "pronouns": pronounToSend,
           };
 
           final cookie = widget.registrationData['cookie'] as String?;
@@ -267,28 +317,13 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
           }
 
           apiResponse = await _apiService.updateUser(userUpdateData, cookie);
-          
-          // --- CORREÇÃO APLICADA AQUI ---
-          // A resposta de 'updateUser' não contém o cookie, então o adicionamos
-          // manualmente para garantir que a próxima tela tenha a sessão.
           apiResponse['cookie'] = cookie;
 
         } else {
-          widget.registrationData['userName'] =
-              widget.registrationData['email'];
-          widget.registrationData['firstName'] = _nicknameController.text;
-          widget.registrationData['fullName'] = _nicknameController.text;
-          widget.registrationData['cpf'] =
-              _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '');
-          widget.registrationData['birthday'] = birthdateToSend;
-          widget.registrationData['pronouns'] = _selectedPronoun;
-          
-          // A chamada de 'register' já retorna os dados do usuário e o cookie.
-          apiResponse = await _apiService.register(widget.registrationData);
+          apiResponse = await _apiService.register(registrationPayload);
         }
 
         if (mounted && apiResponse != null) {
-          // Salva o cookie para sessões futuras
           final cookie = apiResponse['cookie'] as String?;
           if (cookie != null) {
             final prefs = await SharedPreferences.getInstance();
@@ -316,7 +351,6 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     }
   }
 
-  // --- NENHUMA ALTERAÇÃO NA INTERFACE (BUILD METHOD) ---
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -371,19 +405,48 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                               value!.isEmpty ? 'Campo obrigatório' : null,
                         ),
                         const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _cpfController,
-                          label: 'Qual seu CPF? *',
-                          icon: Icons.badge_outlined,
-                          iconColor: infoStepColor,
-                          tooltipMessage: 'Essa informação é necessária para validarmos você como pessoa!',
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            CpfInputFormatter()
-                          ],
-                          validator: _validateCpf,
+                        _buildDocumentSelector(),
+                        const SizedBox(height: 20),
+                        
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            return SizeTransition(
+                              sizeFactor: animation,
+                              child: child,
+                            );
+                          },
+                          child: _selectedDocumentType == null
+                              ? const SizedBox.shrink()
+                              : _selectedDocumentType == DocumentType.cpf
+                                ? _buildTextField(
+                                    key: const ValueKey('cpf'),
+                                    controller: _cpfController,
+                                    label: 'Qual seu CPF? *',
+                                    icon: Icons.badge_outlined,
+                                    iconColor: infoStepColor,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      CpfInputFormatter()
+                                    ],
+                                    validator: _validateCpf,
+                                  )
+                                : _buildTextField(
+                                    key: const ValueKey('cnpj'),
+                                    controller: _cnpjController,
+                                    label: 'Qual o CNPJ do rolê? *',
+                                    icon: Icons.business_center_outlined,
+                                    iconColor: infoStepColor,
+                                    keyboardType: TextInputType.number,
+                                    inputFormatters: [
+                                      FilteringTextInputFormatter.digitsOnly,
+                                      CnpjInputFormatter()
+                                    ],
+                                    validator: _validateCnpj,
+                                  ),
                         ),
+
                         const SizedBox(height: 20),
                         _buildTextField(
                           controller: _birthdayController,
@@ -396,17 +459,33 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                               value!.isEmpty ? 'Campo obrigatório' : null,
                         ),
                         const SizedBox(height: 20),
-                        _buildTextField(
-                          controller: _pronounController,
-                          label: 'Qual seu pronome? *',
-                          icon: Icons.wc_outlined,
-                          iconColor: infoStepColor,
-                          tooltipMessage: 'Para que possamos nos dirigir a você de forma correta, por favor nos diga como gostaria de ser chamado!',
-                          readOnly: true,
-                          onTap: _selectPronoun,
-                          validator: (value) =>
-                              value!.isEmpty ? 'Campo obrigatório' : null,
+
+                        // --- CAMPO DE PRONOME CONDICIONAL ---
+                        AnimatedSwitcher(
+                           duration: const Duration(milliseconds: 300),
+                           transitionBuilder: (child, animation) {
+                            return SizeTransition(
+                              sizeFactor: animation,
+                              child: child,
+                            );
+                          },
+                          child: _selectedDocumentType == DocumentType.cpf
+                              ? _buildTextField(
+                                  key: const ValueKey('pronoun'),
+                                  controller: _pronounController,
+                                  label: 'Qual seu pronome? *',
+                                  icon: Icons.wc_outlined,
+                                  iconColor: infoStepColor,
+                                  tooltipMessage:
+                                      'Para que possamos nos dirigir a você de forma correta, por favor nos diga como gostaria de ser chamado!',
+                                  readOnly: true,
+                                  onTap: _selectPronoun,
+                                  validator: (value) =>
+                                      value!.isEmpty ? 'Campo obrigatório' : null,
+                                )
+                              : const SizedBox.shrink(),
                         ),
+
                         const Spacer(),
                         const SizedBox(height: 24),
                         _buildPrimaryButton(
@@ -427,6 +506,82 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     );
   }
 
+  Widget _buildDocumentSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Esse rolê é de uma pessoa física ou tem CNPJ?',
+          style: TextStyle(
+            color: secondaryTextColor,
+            fontSize: 16.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _buildChoiceChip(
+                label: 'Pessoa Física (CPF)',
+                selected: _selectedDocumentType == DocumentType.cpf,
+                onSelected: (selected) {
+                  setState(() {
+                    _selectedDocumentType = DocumentType.cpf;
+                    _cnpjController.clear();
+                  });
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _buildChoiceChip(
+                label: 'Pessoa Jurídica (CNPJ)',
+                selected: _selectedDocumentType == DocumentType.cnpj,
+                onSelected: (selected) {
+                   setState(() {
+                    _selectedDocumentType = DocumentType.cnpj;
+                    _cpfController.clear();
+                    // Limpa o campo de pronome ao selecionar CNPJ
+                    _pronounController.clear(); 
+                    _selectedPronoun = null;
+                  });
+                },
+              ),
+            ),
+          ],
+        )
+      ],
+    );
+  }
+  
+  Widget _buildChoiceChip({
+    required String label,
+    required bool selected,
+    required ValueChanged<bool> onSelected,
+  }) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: onSelected,
+      backgroundColor: fieldBackgroundColor,
+      selectedColor: infoStepColor,
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : secondaryTextColor,
+        fontWeight: FontWeight.bold,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(
+          color: selected ? infoStepColor : fieldBorderColor,
+          width: 1.5,
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      showCheckmark: false,
+    );
+  }
+  
   Widget _buildBreadcrumbs() {
     return SizedBox(
       width: MediaQuery.of(context).size.width * 0.4,
@@ -496,6 +651,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
   }
 
   Widget _buildTextField({
+    Key? key,
     required TextEditingController controller,
     required String label,
     required IconData icon,
@@ -508,6 +664,7 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
     VoidCallback? onTap,
   }) {
     return Column(
+      key: key,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -534,10 +691,9 @@ class _AdditionalInfoScreenState extends State<AdditionalInfoScreen> {
                   padding: const EdgeInsets.all(12),
                   margin: const EdgeInsets.symmetric(horizontal: 24),
                   decoration: BoxDecoration(
-                    color: fieldBackgroundColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: fieldBorderColor)
-                  ),
+                      color: fieldBackgroundColor,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: fieldBorderColor)),
                   textStyle: const TextStyle(color: primaryTextColor),
                   triggerMode: TooltipTriggerMode.tap,
                   preferBelow: false,
@@ -599,8 +755,7 @@ Widget _buildPrimaryButton(
       backgroundColor: primaryButtonColor,
       foregroundColor: Colors.white,
       padding: const EdgeInsets.symmetric(vertical: 22),
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       minimumSize: const Size(double.infinity, 64),
       elevation: 3,
       shadowColor: primaryButtonColor.withOpacity(0.5),
@@ -633,6 +788,32 @@ class CpfInputFormatter extends TextInputFormatter {
       if ((i == 2 || i == 5) && i != newText.length - 1) {
         formattedText += '.';
       } else if (i == 8 && i != newText.length - 1) {
+        formattedText += '-';
+      }
+    }
+    return newValue.copyWith(
+      text: formattedText,
+      selection: TextSelection.collapsed(offset: formattedText.length),
+    );
+  }
+}
+
+class CnpjInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    final newText = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (newText.length > 14) return oldValue;
+    var formattedText = '';
+    for (int i = 0; i < newText.length; i++) {
+      formattedText += newText[i];
+      if (i == 1 && i != newText.length - 1) {
+        formattedText += '.';
+      } else if (i == 4 && i != newText.length - 1) {
+        formattedText += '.';
+      } else if (i == 7 && i != newText.length - 1) {
+        formattedText += '/';
+      } else if (i == 11 && i != newText.length - 1) {
         formattedText += '-';
       }
     }
