@@ -152,14 +152,17 @@ class _MyEventsTabState extends State<MyEventsTab> {
           _buildDetailsCard(),
           const SizedBox(height: 24),
           _buildPrimaryButton('Editar Evento', () async {
+            // *** MUDANÇA PRINCIPAL AQUI ***
             final result = await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => CreatePromotionStep1Screen(
                   loginResponse: widget.loginResponse,
                   promotion: _promotion,
+                  imageUrls: _imageUrls, // Passa as URLs das imagens
                 ),
               ),
             );
+            // Se a edição foi bem-sucedida, atualiza os dados da tela
             if (result == true) {
               _fetchMyPromotion();
             }

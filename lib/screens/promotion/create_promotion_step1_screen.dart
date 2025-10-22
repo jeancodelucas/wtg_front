@@ -1,6 +1,5 @@
 // lib/screens/promotion/create_promotion_step1_screen.dart
 
-// ... (imports e constantes inalterados) ...
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,25 +7,29 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/screens/promotion/create_promotion_step2_screen.dart';
 
-// --- PALETA DE CORES PADRONIZADA ---
+// --- PALETA DE CORES (sem alterações) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748);
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-
-// --- NOVA COR DE DESTAQUE ---
-const Color accentColor = Color(0xFF218c74); // Novo tom de Verde
-
-// Cores do Breadcrumb
-const Color step2Color = Color(0xFFF6AD55); // Laranja
-const Color step3Color = Color(0xFFF56565); // Vermelho
+const Color accentColor = Color(0xFF218c74);
+const Color step2Color = Color(0xFFF6AD55);
+const Color step3Color = Color(0xFFF56565);
 
 class CreatePromotionStep1Screen extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
   final Map<String, dynamic>? promotion;
-  const CreatePromotionStep1Screen({super.key, required this.loginResponse, this.promotion,});
+  // *** NOVO PARÂMETRO ***
+  final List<String>? imageUrls;
+
+  const CreatePromotionStep1Screen({
+    super.key, 
+    required this.loginResponse, 
+    this.promotion,
+    this.imageUrls, // Recebe as URLs
+  });
 
   @override
   State<CreatePromotionStep1Screen> createState() =>
@@ -34,13 +37,13 @@ class CreatePromotionStep1Screen extends StatefulWidget {
 }
 
 class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen> {
-  // ... (variáveis e initState inalterados) ...
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _infoController = TextEditingController();
   final _obsController = TextEditingController();
   final _ticketValueController = TextEditingController();
-  final List<File> _selectedImages = [];
+  // *** LISTA ATUALIZADA para aceitar URLs (String) e Arquivos (File) ***
+  final List<dynamic> _images = [];
   final ImagePicker _picker = ImagePicker();
   PromotionType? _selectedPromotionType;
   bool _isFree = true;
@@ -61,7 +64,8 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         _ticketValueController.text = promo['ticketValue'].toString().replaceAll('.', ',');
       }
       
-      final typeString = promo['type'] as String?;
+      // *** CORREÇÃO AQUI: Usa 'promotionType' em vez de 'type' ***
+      final typeString = promo['promotionType'] as String?;
       if (typeString != null) {
         try {
           _selectedPromotionType = PromotionType.values.firstWhere(
@@ -71,9 +75,11 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
           _selectedPromotionType = null;
         }
       }
-      // NOTA: A edição de imagens existentes (carregar, remover, adicionar) não está implementada aqui.
-      // Seria necessário buscar as _imageUrls e criar uma lógica mais complexa.
-      // Por enquanto, a edição não mexe nas imagens.
+      
+      // *** NOVO: Carrega as imagens existentes na lista ***
+      if (widget.imageUrls != null) {
+        _images.addAll(widget.imageUrls!);
+      }
     }
   }
 
@@ -87,35 +93,36 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
   }
 
   Future<void> _pickImages() async {
-    if (_selectedImages.length >= 6) {
+    if (_images.length >= 6) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Você pode selecionar no máximo 6 imagens.')));
       return;
     }
     final List<XFile> pickedFiles = await _picker.pickMultiImage(
-        imageQuality: 85, limit: 6 - _selectedImages.length);
+        imageQuality: 85, limit: 6 - _images.length);
     if (pickedFiles.isNotEmpty) {
       setState(() {
-        _selectedImages.addAll(pickedFiles.map((file) => File(file.path)));
+        _images.addAll(pickedFiles.map((file) => File(file.path)));
       });
     }
   }
 
   void _removeImage(int index) {
     setState(() {
-      _selectedImages.removeAt(index);
+      _images.removeAt(index);
     });
   }
 
-
-  // *** MÉTODO ATUALIZADO ***
   void _continueToNextStep() async {
     if (_formKey.currentState!.validate()) {
-      if (_selectedImages.isEmpty && !_isEditing) {
+      if (_images.isEmpty && !_isEditing) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Por favor, adicione pelo menos uma imagem.')));
         return;
       }
+
+      // *** NOVO: Separa as imagens novas (File) das existentes (String) ***
+      final newImages = _images.whereType<File>().toList();
 
       final promotionData = {
         'promotion': widget.promotion,
@@ -127,25 +134,24 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'ticketValue':
             !_isFree ? _ticketValueController.text.replaceAll(',', '.') : null,
         'active': true,
-        'images': _selectedImages,
+        'images': newImages, // Envia apenas as novas imagens
         'loginResponse': widget.loginResponse,
       };
       
-      // Espera o resultado da tela 2
       final result = await Navigator.of(context).push(MaterialPageRoute(
         builder: (context) =>
             CreatePromotionStep2Screen(promotionData: promotionData),
       ));
 
-      // Se o resultado for 'true', retorna 'true' para a tela anterior (MyEventsTab)
       if (result == true) {
         Navigator.of(context).pop(true);
       }
     }
   }
 
- @override
+  @override
   Widget build(BuildContext context) {
+    // ... (build method inalterado) ...
     return Scaffold(
       backgroundColor: darkBackgroundColor,
       appBar: AppBar(
@@ -296,38 +302,8 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     );
   }
 
+  // *** WIDGET ATUALIZADO para lidar com a lista mista ***
   Widget _buildImageGrid() {
-    // No modo de edição, por enquanto, apenas exibimos um placeholder para adicionar mais imagens
-    if (_isEditing && _selectedImages.isEmpty) {
-       return GestureDetector(
-        onTap: _pickImages,
-        child: DottedBorder(
-          color: fieldBorderColor,
-          strokeWidth: 2,
-          dashPattern: const [6, 6],
-          borderType: BorderType.RRect,
-          radius: const Radius.circular(16),
-          child: Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: fieldBackgroundColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16.0),
-            ),
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_outlined, color: secondaryTextColor, size: 32),
-                  SizedBox(height: 8),
-                  Text('Adicionar novas fotos', style: TextStyle(color: secondaryTextColor))
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -339,12 +315,42 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         childAspectRatio: 1.0,
       ),
       itemBuilder: (context, index) {
-        if (index < _selectedImages.length) {
-          return _buildImageItem(_selectedImages[index], index);
-        } else {
-          return _buildImagePlaceholder(index);
+        if (index < _images.length) {
+          final image = _images[index];
+          if (image is String) { // Se for uma URL
+            return _buildNetworkImageItem(image, index);
+          } else if (image is File) { // Se for um Arquivo
+            return _buildImageItem(image, index);
+          }
         }
+        return _buildImagePlaceholder(index);
       },
+    );
+  }
+  
+  // *** NOVO WIDGET para exibir imagens da internet ***
+  Widget _buildNetworkImageItem(String imageUrl, int index) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16.0),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(imageUrl, fit: BoxFit.cover),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: GestureDetector(
+              onTap: () => _removeImage(index),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                    color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.close, color: Colors.white, size: 18),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -374,7 +380,7 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
   }
 
   Widget _buildImagePlaceholder(int index) {
-    bool isFirstPlaceholder = index == _selectedImages.length;
+    bool isFirstPlaceholder = index == _images.length;
     return GestureDetector(
       onTap: _pickImages,
       child: DottedBorder(
