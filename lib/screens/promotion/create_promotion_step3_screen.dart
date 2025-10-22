@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+//import 'package:wtg_front/screens/home_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/main_screen.dart';
 
@@ -41,35 +42,27 @@ class _CreatePromotionStep3ScreenState
   bool _isLoading = false;
   bool _isVisible = true;
 
-  bool get _isEditing => widget.promotionData['promotion'] != null;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_isEditing) {
-      // Preenche o switch de visibilidade com o valor existente
-      _isVisible = widget.promotionData['promotion']?['active'] ?? true;
-    }
-  }
-
+  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
   Future<void> _submitFinalPromotion() async {
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? cookie = prefs.getString('session_cookie');
-      if (cookie == null) throw Exception('Sessão expirada. Faça o login novamente.');
+      if (cookie == null)
+        throw Exception('Sessão expirada. Faça o login novamente.');
 
       final LatLng coordinates = widget.promotionData['coordinates'];
-      final Map<String, dynamic> addressData = widget.promotionData['addressData'];
+      final Map<String, dynamic> addressData =
+          widget.promotionData['addressData'];
       final bool isFree = widget.promotionData['free'] as bool;
 
-      // Monta o payload base com todos os dados coletados
-      final Map<String, dynamic> promotionPayload = {
+      final Map<String, dynamic> promotionDataPayload = {
         "title": widget.promotionData['title'],
         "description": widget.promotionData['description'],
         "obs": widget.promotionData['obs'],
-        "promotionType": (widget.promotionData['promotionType'] as String).toUpperCase(),
+        "promotionType":
+            (widget.promotionData['promotionType'] as String).toUpperCase(),
         "active": _isVisible,
         "completeRegistration": false,
         "address": addressData,
@@ -80,61 +73,51 @@ class _CreatePromotionStep3ScreenState
 
       if (!isFree) {
         final String? ticketValueString = widget.promotionData['ticketValue'];
-        final double? ticketValue = ticketValueString != null ? double.tryParse(ticketValueString) : null;
+        final double? ticketValue =
+            ticketValueString != null ? double.tryParse(ticketValueString) : null;
+
         if (ticketValue == null || ticketValue <= 0) {
           throw Exception('Valor do ingresso é inválido para uma promoção paga.');
         }
-        promotionPayload['ticketValue'] = ticketValue;
-      }
-      
-      String promotionId;
-      
-      // --- LÓGICA PARA DECIDIR ENTRE CRIAR E ATUALIZAR ---
-      if (_isEditing) {
-        promotionId = widget.promotionData['promotion']['id'].toString();
-        await _apiService.updatePromotion(promotionId, promotionPayload, cookie);
-        // Em edição, o upload de novas imagens é opcional
-        final List<File> images = widget.promotionData['images'];
-        if (images.isNotEmpty) {
-          await _apiService.uploadPromotionImages(promotionId, images, cookie);
-        }
-      } else {
-        // Lógica de criação
-        final createResponse = await _apiService.createPromotion(promotionPayload, cookie);
-        promotionId = createResponse['id']?.toString() ?? '';
-        if (promotionId.isEmpty) throw Exception('Não foi possível obter o ID da promoção criada.');
-        
-        final List<File> images = widget.promotionData['images'];
-        if (images.isNotEmpty) {
-          await _apiService.uploadPromotionImages(promotionId, images, cookie);
-        }
+        promotionDataPayload['ticketValue'] = ticketValue;
       }
 
-      // Finaliza o cadastro em ambos os casos
-      await _apiService.completePromotionRegistration(promotionId, cookie);
+      final createResponse =
+          await _apiService.createPromotion(promotionDataPayload, cookie);
+      final newPromotionId = createResponse['id']?.toString();
+      if (newPromotionId == null)
+        throw Exception('Não foi possível obter o ID da promoção criada.');
+
+      // --- LINHA DE CÓDIGO RESTAURADA ---
+      final List<File> images = widget.promotionData['images'];
+      if (images.isNotEmpty) {
+        await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
+      }
+      
+      await _apiService.completePromotionRegistration(newPromotionId, cookie);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Seu rolê foi salvo com sucesso!')));
-        
-        // Retorna 'true' para as telas anteriores saberem que a operação foi um sucesso
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        Navigator.of(context).pushReplacement(
+            const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => MainScreen(loginResponse: widget.loginResponse),
           ),
+          (route) => false,
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Erro ao salvar: ${e.toString().replaceAll("Exception: ", "")}')));
+                'Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+
+  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
 
   @override
   Widget build(BuildContext context) {
@@ -165,10 +148,10 @@ class _CreatePromotionStep3ScreenState
                     color: accentColor, size: 64),
               ),
               const SizedBox(height: 24),
-              Text(
-                _isEditing ? 'Seu rolê foi atualizado!' : 'Seu rolê foi cadastrado\ncom sucesso!',
+              const Text(
+                'Seu rolê foi cadastrado\ncom sucesso!',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: primaryTextColor,

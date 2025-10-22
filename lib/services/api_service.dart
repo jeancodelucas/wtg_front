@@ -14,8 +14,64 @@ class ApiService {
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080/api';
     } else {
-      // Use o IP da sua máquina na rede local para testes no iOS
       return 'http://192.168.1.42:8080/api';
+    }
+  }
+
+  // --- MÉTODO DE ATUALIZAÇÃO CORRIGIDO PARA MULTIPART ---
+  Future<Map<String, dynamic>> updatePromotion(String promotionId, Map<String, dynamic> promotionData, List<File> newImages, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
+    print('Enviando requisição MULTIPART para ATUALIZAR promoção: $uri');
+
+    var request = http.MultipartRequest('PUT', uri);
+    request.headers['Cookie'] = cookie;
+    
+    // 1. Prepara o payload de dados (o DTO)
+    final Map<String, dynamic> payload = Map.from(promotionData);
+    if (payload['promotionType'] != null) {
+      if (payload['promotionType'] is PromotionType) {
+        payload['promotionType'] = (payload['promotionType'] as PromotionType).name.toUpperCase();
+      } else if (payload['promotionType'] is String) {
+        payload['promotionType'] = (payload['promotionType'] as String).toUpperCase();
+      }
+    }
+    payload.remove('images');
+    payload.remove('loginResponse');
+    payload.remove('promotion');
+    
+    // 2. Adiciona o JSON como uma parte do formulário chamada "dto"
+    request.files.add(
+      http.MultipartFile.fromString(
+        'dto',
+        jsonEncode(payload),
+        contentType: MediaType('application', 'json'),
+      ),
+    );
+
+    // 3. Adiciona as novas imagens como uma parte do formulário chamada "images"
+    for (var imageFile in newImages) {
+      final mimeType = lookupMimeType(imageFile.path);
+      final mediaType = mimeType != null ? MediaType.parse(mimeType) : null;
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          'images',
+          imageFile.path,
+          contentType: mediaType,
+        ),
+      );
+    }
+    
+    // 4. Envia a requisição
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    print('Resposta da atualização: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao atualizar o evento');
     }
   }
 
@@ -24,21 +80,16 @@ class ApiService {
     final uri = Uri.parse('$_baseUrl/promotions');
     print('Enviando requisição para criar promoção: $uri');
 
-    // Cria uma cópia do mapa para poder modificá-lo com segurança
     final Map<String, dynamic> payload = Map.from(promotionData);
 
-    // --- CORREÇÃO APLICADA AQUI ---
-    // Verifica se 'promotionType' é um enum e o converte para String (ex: "PARTY")
     if (payload['promotionType'] is PromotionType) {
       payload['promotionType'] = (payload['promotionType'] as PromotionType).name;
     }
     
-    // Remove dados que não são enviados para a API no passo 3
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('addressData');
     payload.remove('coordinates');
-
 
     print('Payload final: ${jsonEncode(payload)}');
 
@@ -64,13 +115,11 @@ class ApiService {
     }
   }
 
-  // O restante dos seus métodos (login, register, filterPromotions, etc.) continuam aqui...
-  
   Future<Map<String, dynamic>> completePromotionRegistration(String promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/complete');
     print('Finalizando cadastro da promoção: $uri');
 
-    final response = await http.patch( // Usando PATCH
+    final response = await http.patch(
       uri,
       headers: {
         'Content-Type': 'application/json; charset=UTF-8',
@@ -255,32 +304,6 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> updatePromotion(String promotionId, Map<String, dynamic> promotionData, String cookie) async {
-    // O endpoint para edição geralmente usa o método PUT e o ID do recurso
-    // Ex: /api/promotions/79
-    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
-    
-    print('Enviando requisição para ATUALIZAR promoção: $uri');
-    
-    final response = await http.put(
-      uri,
-      headers: {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Cookie': cookie,
-      },
-      body: jsonEncode(promotionData),
-    );
-
-    print('Resposta da atualização: ${response.statusCode}');
-
-    if (response.statusCode == 200) {
-      return jsonDecode(utf8.decode(response.bodyBytes));
-    } else {
-      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
-      throw Exception(errorBody['message'] ?? 'Falha ao atualizar o evento');
-    }
-  }
-
   Future<void> deletePromotion(String promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId');
     final response = await http.delete(uri, headers: {'Cookie': cookie});
@@ -288,6 +311,7 @@ class ApiService {
       throw Exception('Falha ao deletar o evento');
     }
   }
+
   Future<Map<String, dynamic>> register(
       Map<String, dynamic> registrationData) async {
     final uri = Uri.parse('$_baseUrl/users/register');
@@ -473,7 +497,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else if (response.statusCode == 404) {
-      return []; // Retorna lista vazia se não encontrar nenhuma promoção
+      return [];
     }
     else {
       throw Exception('Falha ao buscar seus eventos');
@@ -490,7 +514,7 @@ Future<String?> uploadProfilePicture(File image, String cookie) async {
 
     request.files.add(
       await http.MultipartFile.fromPath(
-        'picture', // Nome do campo esperado pelo backend (@RequestParam("picture"))
+        'picture',
         image.path,
         contentType: mediaType,
       ),
@@ -500,7 +524,7 @@ Future<String?> uploadProfilePicture(File image, String cookie) async {
     if (response.statusCode == 200) {
       final responseBody = await response.stream.bytesToString();
       final data = jsonDecode(responseBody);
-      return data['pictureUrl']; // O backend retorna a chave do S3 como 'pictureUrl'
+      return data['pictureUrl'];
     } else {
       final responseBody = await response.stream.bytesToString();
       throw Exception('Falha ao enviar a imagem: $responseBody');
