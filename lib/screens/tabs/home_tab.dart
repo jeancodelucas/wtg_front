@@ -34,11 +34,9 @@ class _HomeTabState extends State<HomeTab> {
   String? _error;
   Position? _currentPosition;
 
-  // --- MUDANÇA 1: Duas listas para gerenciar os dados ---
-  List<dynamic> _allPromotions = []; // Guarda TODOS os rolês da API
-  List<dynamic> _filteredPromotions = []; // Guarda os rolês filtrados para exibição
+  List<dynamic> _allPromotions = [];
+  List<dynamic> _filteredPromotions = [];
 
-  // Filtros
   double _currentRadius = 10.0;
   PromotionType? _selectedType;
 
@@ -54,7 +52,6 @@ class _HomeTabState extends State<HomeTab> {
     await _fetchData();
   }
 
-  // --- MUDANÇA 2: _fetchData agora busca TUDO da API e depois aplica o filtro inicial ---
   Future<void> _fetchData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
@@ -71,22 +68,21 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     try {
-      // Pede à API todos os eventos num raio bem grande para ter todos os dados localmente
       final promotions = await _apiService.filterPromotions(
         cookie: cookie,
         latitude: _currentPosition?.latitude,
         longitude: _currentPosition?.longitude,
-        radius: 20000, // Raio grande para buscar "todos"
-        promotionType: null, // Sem filtro de tipo na busca inicial
+        radius: 20000,
+        promotionType: null,
       );
 
       if (mounted) {
         setState(() {
-          _allPromotions = promotions; // Salva a lista completa
+          _allPromotions = promotions;
           _isLoading = false;
           _error = null;
         });
-        _applyFilters(); // Aplica os filtros (se houver algum selecionado)
+        _applyFilters();
       }
     } catch (e) {
       if (mounted) {
@@ -98,22 +94,19 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
-  // --- MUDANÇA 3: Nova função para filtrar os dados localmente, SEM chamar a API ---
   void _applyFilters() {
     if (!mounted) return;
 
     List<dynamic> promotionsToShow = List.from(_allPromotions);
 
-    // 1. Filtro por tipo de promoção (categoria)
     if (_selectedType != null) {
       promotionsToShow = promotionsToShow.where((p) {
-        final typeString = p['type'] as String?;
-        // Compara o nome do enum com o texto vindo da API
+        // CORREÇÃO SUTIL: A chave no JSON da API de filtro é 'promotionType'
+        final typeString = p['promotionType'] as String?;
         return typeString?.toLowerCase() == _selectedType!.name.toLowerCase();
       }).toList();
     }
 
-    // 2. Filtro por raio de distância
     if (_currentPosition != null) {
       promotionsToShow = promotionsToShow.where((p) {
         final lat = p['latitude'] as double?;
@@ -132,10 +125,48 @@ class _HomeTabState extends State<HomeTab> {
       }).toList();
     }
 
-    // Atualiza o estado com a lista filtrada para a UI
     setState(() {
       _filteredPromotions = promotionsToShow;
     });
+  }
+
+  // NOVA FUNÇÃO DE NAVEGAÇÃO QUE CHAMA O ENDPOINT DE DETALHES
+  void _navigateToDetail(int promotionId) async {
+    final cookie = widget.loginResponse['cookie'] as String?;
+    if (cookie == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator(color: primaryButtonColor));
+      },
+    );
+
+    try {
+      final promotionDetails = await _apiService.getPromotionDetail(promotionId, cookie);
+      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PromotionDetailScreen(
+              promotion: promotionDetails,
+              currentUserId: widget.loginResponse['user']['id'],
+              cookie: cookie,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar detalhes: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   Future<void> _openInGoogleMaps(double latitude, double longitude) async {
@@ -220,7 +251,6 @@ class _HomeTabState extends State<HomeTab> {
             onChanged: (double value) {
               setState(() => _currentRadius = value);
             },
-            // --- MUDANÇA 4: Chama o filtro local ao invés de buscar na API ---
             onChangeEnd: (double value) {
               _applyFilters();
             },
@@ -238,7 +268,7 @@ class _HomeTabState extends State<HomeTab> {
                   onSelected: () {
                     setState(() {
                       _selectedType = null;
-                      _applyFilters(); // <-- Chama o filtro local
+                      _applyFilters();
                     });
                   },
                 ),
@@ -249,7 +279,7 @@ class _HomeTabState extends State<HomeTab> {
                     onSelected: () {
                       setState(() {
                         _selectedType = (_selectedType == type) ? null : type;
-                        _applyFilters(); // <-- Chama o filtro local
+                        _applyFilters();
                       });
                     },
                   );
@@ -302,14 +332,13 @@ class _HomeTabState extends State<HomeTab> {
       return Center(
           child: Text(_error!, style: const TextStyle(color: Colors.red)));
     }
-    // --- MUDANÇA 5: Usa a lista filtrada ---
     if (_filteredPromotions.isEmpty) {
       return const Center(
           child: Text("Nenhum rolê encontrado com os filtros atuais.",
               style: TextStyle(color: secondaryTextColor, fontSize: 16)));
     }
     return RefreshIndicator(
-      onRefresh: _fetchData, // Swipe down to refresh chama a API
+      onRefresh: _fetchData,
       color: primaryButtonColor,
       backgroundColor: fieldBackgroundColor,
       child: ListView.builder(
@@ -399,15 +428,10 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     return InkWell(
+      // A ÚNICA ALTERAÇÃO ESTÁ AQUI:
       onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PromotionDetailScreen(
-              promotion: promotion,
-            ),
-          ),
-        );
+        // A nova função de navegação é chamada aqui
+        _navigateToDetail(promotion['id']);
       },
       child: Card(
         color: fieldBackgroundColor,

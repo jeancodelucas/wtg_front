@@ -11,11 +11,56 @@ class ApiService {
   final String _baseUrl = _getBaseUrl();
 
   static String _getBaseUrl() {
-    // ... (código inalterado)
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080/api';
     } else {
+      // Use o IP da sua máquina. Verifique-o na sua rede.
       return 'http://192.168.1.42:8080/api';
+    }
+  }
+
+  // NOVO: Busca os detalhes completos de uma promoção
+  Future<Map<String, dynamic>> getPromotionDetail(
+      int promotionId, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/detail/$promotionId');
+    print('Buscando detalhes da promoção em: $uri');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+    );
+
+    print('Resposta de /promotions/detail: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(
+          errorBody['message'] ?? 'Falha ao buscar detalhes da promoção');
+    }
+  }
+
+  // NOVO: Deleta um comentário
+  Future<void> deleteComment(int commentId, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/comments/$commentId');
+    print('Deletando comentário em: $uri');
+
+    final response = await http.delete(
+      uri,
+      headers: {
+        'Cookie': cookie,
+      },
+    );
+
+    print('Resposta da deleção do comentário: ${response.statusCode}');
+
+    if (response.statusCode != 204) {
+      // 204 No Content é a resposta esperada para sucesso
+      throw Exception('Falha ao deletar o comentário.');
     }
   }
 
@@ -23,11 +68,11 @@ class ApiService {
       String promotionId,
       Map<String, dynamic> promotionData,
       List<File> newImages,
-      List<String> removedImageUrls, // <-- Parâmetro já está correto
+      List<String> removedImageUrls,
       String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
     print('Enviando requisição MULTIPART para ATUALIZAR promoção: $uri');
-    print('Imagens a remover: $removedImageUrls'); // Log para depuração
+    print('Imagens a remover: $removedImageUrls');
 
     var request = http.MultipartRequest('PUT', uri);
     request.headers['Cookie'] = cookie;
@@ -42,13 +87,13 @@ class ApiService {
             (payload['promotionType'] as String).toUpperCase();
       }
     }
-    
+
     payload['removedImageUrls'] = removedImageUrls;
 
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('promotion');
-    payload.remove('removedImages'); 
+    payload.remove('removedImages');
 
     request.files.add(
       http.MultipartFile.fromString(
@@ -84,7 +129,6 @@ class ApiService {
     }
   }
 
-  // ... (restante do código do api_service.dart inalterado)
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions');
@@ -93,9 +137,10 @@ class ApiService {
     final Map<String, dynamic> payload = Map.from(promotionData);
 
     if (payload['promotionType'] is PromotionType) {
-      payload['promotionType'] = (payload['promotionType'] as PromotionType).name;
+      payload['promotionType'] =
+          (payload['promotionType'] as PromotionType).name;
     }
-    
+
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('addressData');
@@ -125,7 +170,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> completePromotionRegistration(String promotionId, String cookie) async {
+  Future<Map<String, dynamic>> completePromotionRegistration(
+      String promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/complete');
     print('Finalizando cadastro da promoção: $uri');
 
@@ -143,7 +189,8 @@ class ApiService {
     if (response.statusCode == 200) {
       return responseBody;
     } else {
-      throw Exception(responseBody['message'] ?? 'Falha ao finalizar o cadastro do evento.');
+      throw Exception(
+          responseBody['message'] ?? 'Falha ao finalizar o cadastro do evento.');
     }
   }
 
@@ -168,7 +215,7 @@ class ApiService {
       throw Exception(errorBody['message'] ?? 'Falha ao buscar sua promoção');
     }
   }
-  
+
   Future<List<dynamic>> getPromotionImageViews(
       int promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/image-urls');
@@ -192,7 +239,8 @@ class ApiService {
     }
   }
 
-  Future<void> uploadPromotionImages(String promotionId, List<File> images, String cookie) async {
+  Future<void> uploadPromotionImages(
+      String promotionId, List<File> images, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/images');
     print('Enviando imagens para: $uri');
 
@@ -223,7 +271,7 @@ class ApiService {
       throw Exception('Falha ao enviar as imagens.');
     }
   }
-  
+
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -245,7 +293,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(utf8.decode(response.bodyBytes));
-      
+
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null) {
         responseData['cookie'] = rawCookie;
@@ -257,15 +305,17 @@ class ApiService {
     }
   }
 
-  Future<Map<String, double>> getCoordinatesFromAddress(Map<String, String> addressData) async {
-    print('Buscando coordenadas para o endereço (função de placeholder): $addressData');
-    await Future.delayed(const Duration(seconds: 1)); 
+  Future<Map<String, double>> getCoordinatesFromAddress(
+      Map<String, String> addressData) async {
+    print(
+        'Buscando coordenadas para o endereço (função de placeholder): $addressData');
+    await Future.delayed(const Duration(seconds: 1));
     return {
       'latitude': -8.057838,
       'longitude': -34.870639,
     };
   }
-  
+
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
     print('Enviando requisição de início de registo para: $uri');
@@ -343,7 +393,6 @@ class ApiService {
         responseData['cookie'] = rawCookie;
       }
       return responseData;
-
     } else {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
       String errorMessage =
@@ -351,7 +400,6 @@ class ApiService {
       throw Exception(errorMessage);
     }
   }
-  
 
   Future<Map<String, dynamic>> loginWithGoogle(String token,
       {double? latitude, double? longitude}) async {
@@ -466,7 +514,7 @@ class ApiService {
     PromotionType? promotionType,
   }) async {
     final queryParameters = <String, String>{};
-    
+
     if (latitude != null && longitude != null && radius != null) {
       queryParameters['latitude'] = latitude.toString();
       queryParameters['longitude'] = longitude.toString();
@@ -494,7 +542,8 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
+      throw Exception(
+          'Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
 
@@ -508,13 +557,12 @@ class ApiService {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else if (response.statusCode == 404) {
       return [];
-    }
-    else {
+    } else {
       throw Exception('Falha ao buscar seus eventos');
     }
   }
 
-Future<String?> uploadProfilePicture(File image, String cookie) async {
+  Future<String?> uploadProfilePicture(File image, String cookie) async {
     final uri = Uri.parse('$_baseUrl/users/picture/upload');
     var request = http.MultipartRequest('POST', uri);
     request.headers['Cookie'] = cookie;
