@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:wtg_front/services/api_service.dart';
-// --- NOVO IMPORT ADICIONADO ---
 import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart';
 
 // --- PALETA DE CORES PADRONIZADA (dark mode) ---
@@ -36,14 +35,21 @@ class _MyEventsTabState extends State<MyEventsTab> {
   List<String> _imageUrls = [];
   String? _error;
 
+  int _currentImageIndex = 0;
+
   @override
   void initState() {
     super.initState();
     _fetchMyPromotion();
   }
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA DE FUNCIONALIDADE ---
   Future<void> _fetchMyPromotion() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+      _promotion = null;
+    });
+
     final cookie = widget.loginResponse['cookie'] as String?;
     if (cookie == null) {
       if (mounted) {
@@ -74,7 +80,6 @@ class _MyEventsTabState extends State<MyEventsTab> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          // Lógica para identificar a resposta da API de que não há promoção
           if (e.toString().contains("Nenhuma promoção encontrada")) {
             _error = "Você ainda não possui um evento cadastrado.";
           } else {
@@ -99,13 +104,10 @@ class _MyEventsTabState extends State<MyEventsTab> {
       return const Center(child: CircularProgressIndicator(color: primaryButtonColor));
     }
 
-    // --- LÓGICA DE EXIBIÇÃO ATUALIZADA ---
     if (_error != null) {
-      // Se o erro for específico de não ter evento, mostra a nova tela com o botão
       if (_error == "Você ainda não possui um evento cadastrado.") {
         return _buildNoEventRegistered();
       }
-      // Para outros erros, mantém a mensagem genérica
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -149,15 +151,24 @@ class _MyEventsTabState extends State<MyEventsTab> {
           const SizedBox(height: 24),
           _buildDetailsCard(),
           const SizedBox(height: 24),
-          _buildPrimaryButton('Editar Evento', () {
-            // TODO: Implementar navegação para a tela de edição
+          _buildPrimaryButton('Editar Evento', () async {
+            final result = await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CreatePromotionStep1Screen(
+                  loginResponse: widget.loginResponse,
+                  promotion: _promotion,
+                ),
+              ),
+            );
+            if (result == true) {
+              _fetchMyPromotion();
+            }
           }),
         ],
       ),
     );
   }
 
-  // --- NOVO WIDGET PARA QUANDO NÃO HÁ EVENTO CADASTRADO ---
   Widget _buildNoEventRegistered() {
     return Center(
       child: Padding(
@@ -189,14 +200,17 @@ class _MyEventsTabState extends State<MyEventsTab> {
             ),
             const SizedBox(height: 32),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
+              onPressed: () async {
+                final result = await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => CreatePromotionStep1Screen(
                       loginResponse: widget.loginResponse,
                     ),
                   ),
                 );
+                if (result == true) {
+                  _fetchMyPromotion();
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: primaryButtonColor,
@@ -218,8 +232,6 @@ class _MyEventsTabState extends State<MyEventsTab> {
     );
   }
 
-  // --- WIDGETS RESTANTES (INTERFACE PADRONIZADA, FUNCIONALIDADE INALTERADA) ---
-
   Widget _buildImageGallery() {
     if (_imageUrls.isEmpty) {
       return AspectRatio(
@@ -237,22 +249,44 @@ class _MyEventsTabState extends State<MyEventsTab> {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _imageUrls.length > 6 ? 6 : _imageUrls.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-        childAspectRatio: 1,
-      ),
-      itemBuilder: (context, index) {
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: _buildImage(_imageUrls[index]),
-        );
-      },
+    return Column(
+      children: [
+        AspectRatio(
+          aspectRatio: 16 / 10,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16.0),
+            child: PageView.builder(
+              itemCount: _imageUrls.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentImageIndex = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return _buildImage(_imageUrls[index]);
+              },
+            ),
+          ),
+        ),
+        if (_imageUrls.length > 1) const SizedBox(height: 12),
+        if (_imageUrls.length > 1)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_imageUrls.length, (index) {
+              return Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentImageIndex == index
+                      ? primaryTextColor
+                      : secondaryTextColor,
+                ),
+              );
+            }),
+          ),
+      ],
     );
   }
 
@@ -337,7 +371,6 @@ class _MyEventsTabState extends State<MyEventsTab> {
       color: commentsColor,
       icon: Icons.chat_bubble_outline,
       onTap: () {
-        // TODO: Implementar navegação para a tela de comentários
         print('Botão de comentários clicado!');
       },
     );

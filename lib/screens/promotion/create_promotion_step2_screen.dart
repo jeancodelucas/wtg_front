@@ -54,23 +54,52 @@ class _CreatePromotionStep2ScreenState
   final _observacoesController = TextEditingController();
   final _numeroFocusNode = FocusNode();
 
-  // Variáveis de estado para o mapa
   GoogleMapController? _mapController;
   LatLng? _currentLatLng;
   final Set<Marker> _markers = {};
   bool _mapIsLoading = true;
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+  bool get _isEditing => widget.promotionData['promotion'] != null;
 
   @override
   void initState() {
     super.initState();
-    _fetchCurrentUserLocation();
     _cepFocusNode.addListener(() {
       if (!_cepFocusNode.hasFocus) {
         _fetchAddressFromCep();
       }
     });
+
+    if (_isEditing) {
+      _loadDataForEditing();
+    } else {
+      _fetchCurrentUserLocation();
+    }
+  }
+  
+  void _loadDataForEditing() {
+    final Map<String, dynamic> promo = widget.promotionData['promotion'];
+    final Map<String, dynamic>? address = promo['address'];
+
+    if (address != null) {
+      _cepController.text = address['postalCode'] ?? '';
+      _ufController.text = address['state'] ?? '';
+      _logradouroController.text = address['address'] ?? '';
+      _neighborhoodController.text = address['neighborhood'] ?? '';
+      _cidadeController.text = address['city'] ?? '';
+      _numeroController.text = address['number']?.toString() ?? '';
+      _complementoController.text = address['complement'] ?? '';
+      _pontoReferenciaController.text = address['reference'] ?? '';
+    }
+    
+    final lat = promo['latitude'] as double?;
+    final lon = promo['longitude'] as double?;
+    if (lat != null && lon != null) {
+      _updateMapLocation(LatLng(lat, lon));
+    } else {
+      _fetchCurrentUserLocation(); // Fallback para localização atual se não houver coordenadas
+    }
+    setState(() => _mapIsLoading = false);
   }
 
   @override
@@ -96,6 +125,7 @@ class _CreatePromotionStep2ScreenState
     if (position != null) {
       _updateMapLocation(LatLng(position.latitude, position.longitude));
     } else {
+      // Fallback para uma localização padrão (Recife)
       _updateMapLocation(const LatLng(-8.057838, -34.870639));
     }
     setState(() => _mapIsLoading = false);
@@ -148,7 +178,7 @@ class _CreatePromotionStep2ScreenState
         );
       }
     } catch (e) {
-      /* Ignora erro se o geocoding falhar */
+      print("Erro no geocoding: $e");
     }
   }
 
@@ -183,9 +213,11 @@ class _CreatePromotionStep2ScreenState
       ...widget.promotionData,
       'addressData': {
         "address": _logradouroController.text,
-        "number": int.tryParse(_numeroController.text) ?? 0,
+        "number": _numeroController.text,
         "complement": _complementoController.text,
         "neighborhood": _neighborhoodController.text,
+        "city": _cidadeController.text,
+        "state": _ufController.text,
         "postalCode": _cepController.text.replaceAll(RegExp(r'[^0-9]'), ''),
         "reference": _pontoReferenciaController.text,
         "obs": _observacoesController.text,
@@ -200,9 +232,7 @@ class _CreatePromotionStep2ScreenState
       ),
     ));
   }
-
-  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
-
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -407,14 +437,13 @@ class _CreatePromotionStep2ScreenState
     );
   }
   
-  // --- BREADCRUMB CORRIGIDO ---
-Widget _buildBreadcrumbs() {
+  Widget _buildBreadcrumbs() {
   return Align(
-    alignment: Alignment.centerRight, // garante alinhamento à direita
+    alignment: Alignment.centerRight,
     child: SizedBox(
       width: MediaQuery.of(context).size.width * 0.4,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.end, // itens da Row à direita
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
           _buildStep(
               icon: Icons.storefront,

@@ -255,6 +255,39 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> updatePromotion(String promotionId, Map<String, dynamic> promotionData, String cookie) async {
+    // O endpoint para edição geralmente usa o método PUT e o ID do recurso
+    // Ex: /api/promotions/79
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
+    
+    print('Enviando requisição para ATUALIZAR promoção: $uri');
+    
+    final response = await http.put(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+      body: jsonEncode(promotionData),
+    );
+
+    print('Resposta da atualização: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao atualizar o evento');
+    }
+  }
+
+  Future<void> deletePromotion(String promotionId, String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/$promotionId');
+    final response = await http.delete(uri, headers: {'Cookie': cookie});
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw Exception('Falha ao deletar o evento');
+    }
+  }
   Future<Map<String, dynamic>> register(
       Map<String, dynamic> registrationData) async {
     final uri = Uri.parse('$_baseUrl/users/register');
@@ -284,6 +317,7 @@ class ApiService {
       throw Exception(errorMessage);
     }
   }
+  
 
   Future<Map<String, dynamic>> loginWithGoogle(String token,
       {double? latitude, double? longitude}) async {
@@ -427,6 +461,22 @@ class ApiService {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
       throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
+    }
+  }
+
+  Future<List<dynamic>> getMyPromotions(String cookie) async {
+    final uri = Uri.parse('$_baseUrl/promotions/my-promotions');
+    final response = await http.get(uri, headers: {
+      'Cookie': cookie,
+    });
+
+    if (response.statusCode == 200) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else if (response.statusCode == 404) {
+      return []; // Retorna lista vazia se não encontrar nenhuma promoção
+    }
+    else {
+      throw Exception('Falha ao buscar seus eventos');
     }
   }
 

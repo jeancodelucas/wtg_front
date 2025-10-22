@@ -24,15 +24,15 @@ const Color step3Color = Color(0xFFF56565); // Vermelho
 
 class CreatePromotionStep1Screen extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
-  const CreatePromotionStep1Screen({super.key, required this.loginResponse});
+  final Map<String, dynamic>? promotion;
+  const CreatePromotionStep1Screen({super.key, required this.loginResponse, this.promotion,});
 
   @override
   State<CreatePromotionStep1Screen> createState() =>
       _CreatePromotionStep1ScreenState();
 }
 
-class _CreatePromotionStep1ScreenState
-    extends State<CreatePromotionStep1Screen> {
+class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen> {
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _infoController = TextEditingController();
@@ -43,8 +43,37 @@ class _CreatePromotionStep1ScreenState
   PromotionType? _selectedPromotionType;
   bool _isFree = true;
   bool _isLoading = false;
+  
+  bool get _isEditing => widget.promotion != null;
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+  @override
+  void initState() {
+    super.initState();
+    if (_isEditing) {
+      final promo = widget.promotion!;
+      _nomeController.text = promo['title'] ?? '';
+      _infoController.text = promo['description'] ?? '';
+      _obsController.text = promo['obs'] ?? '';
+      _isFree = promo['free'] ?? true;
+      if (!_isFree && promo['ticketValue'] != null) {
+        _ticketValueController.text = promo['ticketValue'].toString().replaceAll('.', ',');
+      }
+      
+      final typeString = promo['type'] as String?;
+      if (typeString != null) {
+        try {
+          _selectedPromotionType = PromotionType.values.firstWhere(
+            (e) => e.name.toLowerCase() == typeString.toLowerCase()
+          );
+        } catch (e) {
+          _selectedPromotionType = null;
+        }
+      }
+      // NOTA: A edição de imagens existentes (carregar, remover, adicionar) não está implementada aqui.
+      // Seria necessário buscar as _imageUrls e criar uma lógica mais complexa.
+      // Por enquanto, a edição não mexe nas imagens.
+    }
+  }
 
   @override
   void dispose() {
@@ -78,13 +107,16 @@ class _CreatePromotionStep1ScreenState
 
   void _continueToNextStep() {
     if (_formKey.currentState!.validate()) {
-      if (_selectedImages.isEmpty) {
+      // Exige imagem apenas na criação
+      if (_selectedImages.isEmpty && !_isEditing) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Por favor, adicione pelo menos uma imagem.')));
         return;
       }
 
       final promotionData = {
+        // --- MUDANÇA: Passa o objeto de promoção original para as próximas telas ---
+        'promotion': widget.promotion,
         'title': _nomeController.text,
         'description': _infoController.text,
         'obs': _obsController.text,
@@ -96,14 +128,13 @@ class _CreatePromotionStep1ScreenState
         'images': _selectedImages,
         'loginResponse': widget.loginResponse,
       };
+      
       Navigator.of(context).push(MaterialPageRoute(
         builder: (context) =>
             CreatePromotionStep2Screen(promotionData: promotionData),
       ));
     }
   }
-
-  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
 
   @override
   Widget build(BuildContext context) {
@@ -116,8 +147,8 @@ class _CreatePromotionStep1ScreenState
           icon: const Icon(Icons.arrow_back, color: secondaryTextColor),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Cadastre seu Rolê',
-            style: TextStyle(
+        title: Text(_isEditing ? 'Editar seu Rolê' : 'Cadastre seu Rolê',
+            style: const TextStyle(
                 color: primaryTextColor,
                 fontWeight: FontWeight.bold,
                 fontSize: 22)),
@@ -258,6 +289,37 @@ class _CreatePromotionStep1ScreenState
   }
 
   Widget _buildImageGrid() {
+    // No modo de edição, por enquanto, apenas exibimos um placeholder para adicionar mais imagens
+    if (_isEditing && _selectedImages.isEmpty) {
+       return GestureDetector(
+        onTap: _pickImages,
+        child: DottedBorder(
+          color: fieldBorderColor,
+          strokeWidth: 2,
+          dashPattern: const [6, 6],
+          borderType: BorderType.RRect,
+          radius: const Radius.circular(16),
+          child: Container(
+            height: 100,
+            decoration: BoxDecoration(
+              color: fieldBackgroundColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16.0),
+            ),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_outlined, color: secondaryTextColor, size: 32),
+                  SizedBox(height: 8),
+                  Text('Adicionar novas fotos', style: TextStyle(color: secondaryTextColor))
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
