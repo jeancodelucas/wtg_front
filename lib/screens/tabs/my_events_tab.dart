@@ -225,6 +225,7 @@ class _MyEventsTabState extends State<MyEventsTab> {
                 builder: (context) => CreatePromotionStep1Screen(
                   loginResponse: widget.loginResponse,
                   promotion: _promotion,
+                  imageUrls: _imageUrls,
                 ),
               ),
             );

@@ -14,12 +14,42 @@ class ApiService {
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080/api';
     } else {
-      // Use o IP da sua máquina. Verifique-o na sua rede.
       return 'http://192.168.1.42:8080/api';
     }
   }
 
-  // NOVO: Busca os detalhes completos de uma promoção
+  // NOVO: Adiciona um comentário a uma promoção
+  Future<Map<String, dynamic>> createComment({
+    required int promotionId,
+    required String comment,
+    required String cookie,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/comments');
+    print('Enviando novo comentário para: $uri');
+
+    final response = await http.post(
+      uri,
+      headers: {
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Cookie': cookie,
+      },
+      body: jsonEncode({
+        'promotionId': promotionId,
+        'comment': comment,
+      }),
+    );
+
+    print('Resposta de /comments POST: ${response.statusCode}');
+
+    if (response.statusCode == 201) {
+      return jsonDecode(utf8.decode(response.bodyBytes));
+    } else {
+      final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
+      throw Exception(errorBody['message'] ?? 'Falha ao criar o comentário');
+    }
+  }
+
+  // ... (O restante do seu código do api_service.dart permanece o mesmo)
   Future<Map<String, dynamic>> getPromotionDetail(
       int promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/detail/$promotionId');
@@ -44,7 +74,6 @@ class ApiService {
     }
   }
 
-  // NOVO: Deleta um comentário
   Future<void> deleteComment(int commentId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/comments/$commentId');
     print('Deletando comentário em: $uri');
@@ -59,7 +88,6 @@ class ApiService {
     print('Resposta da deleção do comentário: ${response.statusCode}');
 
     if (response.statusCode != 204) {
-      // 204 No Content é a resposta esperada para sucesso
       throw Exception('Falha ao deletar o comentário.');
     }
   }
@@ -71,9 +99,6 @@ class ApiService {
       List<String> removedImageUrls,
       String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
-    print('Enviando requisição MULTIPART para ATUALIZAR promoção: $uri');
-    print('Imagens a remover: $removedImageUrls');
-
     var request = http.MultipartRequest('PUT', uri);
     request.headers['Cookie'] = cookie;
 
@@ -87,13 +112,13 @@ class ApiService {
             (payload['promotionType'] as String).toUpperCase();
       }
     }
-
+    
     payload['removedImageUrls'] = removedImageUrls;
 
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('promotion');
-    payload.remove('removedImages');
+    payload.remove('removedImages'); 
 
     request.files.add(
       http.MultipartFile.fromString(
@@ -118,9 +143,6 @@ class ApiService {
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
-    print('Resposta da atualização: ${response.statusCode}');
-    print('Corpo da resposta: ${response.body}');
-
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
@@ -132,21 +154,16 @@ class ApiService {
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions');
-    print('Enviando requisição para criar promoção: $uri');
-
     final Map<String, dynamic> payload = Map.from(promotionData);
 
     if (payload['promotionType'] is PromotionType) {
-      payload['promotionType'] =
-          (payload['promotionType'] as PromotionType).name;
+      payload['promotionType'] = (payload['promotionType'] as PromotionType).name;
     }
-
+    
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('addressData');
     payload.remove('coordinates');
-
-    print('Payload final: ${jsonEncode(payload)}');
 
     final response = await http.post(
       uri,
@@ -157,7 +174,6 @@ class ApiService {
       body: jsonEncode(payload),
     );
 
-    print('Resposta da criação de promoção: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 201) {
@@ -170,11 +186,8 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> completePromotionRegistration(
-      String promotionId, String cookie) async {
+  Future<Map<String, dynamic>> completePromotionRegistration(String promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/complete');
-    print('Finalizando cadastro da promoção: $uri');
-
     final response = await http.patch(
       uri,
       headers: {
@@ -183,21 +196,17 @@ class ApiService {
       },
     );
 
-    print('Resposta da finalização: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 200) {
       return responseBody;
     } else {
-      throw Exception(
-          responseBody['message'] ?? 'Falha ao finalizar o cadastro do evento.');
+      throw Exception(responseBody['message'] ?? 'Falha ao finalizar o cadastro do evento.');
     }
   }
 
   Future<Map<String, dynamic>> getMyPromotion(String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/my-promotion');
-    print('Buscando promoção do usuário em: $uri');
-
     final response = await http.get(
       uri,
       headers: {
@@ -205,8 +214,6 @@ class ApiService {
         'Cookie': cookie,
       },
     );
-
-    print('Resposta de /my-promotion: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
@@ -215,12 +222,10 @@ class ApiService {
       throw Exception(errorBody['message'] ?? 'Falha ao buscar sua promoção');
     }
   }
-
+  
   Future<List<dynamic>> getPromotionImageViews(
       int promotionId, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/image-urls');
-    print('Buscando URLs das imagens em: $uri');
-
     final response = await http.get(
       uri,
       headers: {
@@ -228,7 +233,6 @@ class ApiService {
         'Cookie': cookie,
       },
     );
-    print('Resposta de /image-urls: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
@@ -239,11 +243,8 @@ class ApiService {
     }
   }
 
-  Future<void> uploadPromotionImages(
-      String promotionId, List<File> images, String cookie) async {
+  Future<void> uploadPromotionImages(String promotionId, List<File> images, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/images');
-    print('Enviando imagens para: $uri');
-
     var request = http.MultipartRequest('POST', uri);
     request.headers['Cookie'] = cookie;
 
@@ -262,7 +263,6 @@ class ApiService {
 
     try {
       final response = await request.send();
-      print('Resposta do upload de imagens: ${response.statusCode}');
       if (response.statusCode != 201) {
         final responseBody = await response.stream.bytesToString();
         throw Exception('Falha ao enviar as imagens: $responseBody');
@@ -271,7 +271,7 @@ class ApiService {
       throw Exception('Falha ao enviar as imagens.');
     }
   }
-
+  
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
@@ -293,7 +293,7 @@ class ApiService {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(utf8.decode(response.bodyBytes));
-
+      
       String? rawCookie = response.headers['set-cookie'];
       if (rawCookie != null) {
         responseData['cookie'] = rawCookie;
@@ -305,21 +305,16 @@ class ApiService {
     }
   }
 
-  Future<Map<String, double>> getCoordinatesFromAddress(
-      Map<String, String> addressData) async {
-    print(
-        'Buscando coordenadas para o endereço (função de placeholder): $addressData');
-    await Future.delayed(const Duration(seconds: 1));
+  Future<Map<String, double>> getCoordinatesFromAddress(Map<String, String> addressData) async {
+    await Future.delayed(const Duration(seconds: 1)); 
     return {
       'latitude': -8.057838,
       'longitude': -34.870639,
     };
   }
-
+  
   Future<Map<String, dynamic>> initiateRegistration(String email) async {
     final uri = Uri.parse('$_baseUrl/users/register');
-    print('Enviando requisição de início de registo para: $uri');
-
     try {
       final response = await http.post(
         uri,
@@ -327,7 +322,6 @@ class ApiService {
         body: jsonEncode({'email': email}),
       );
 
-      print('Resposta do início de registo: ${response.statusCode}');
       final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
       if (response.statusCode == 200) {
@@ -337,7 +331,6 @@ class ApiService {
             responseBody['message'] ?? 'Falha ao iniciar o registo.');
       }
     } on http.ClientException catch (e) {
-      print('Erro de cliente ao iniciar registo: ${e.message}');
       throw Exception(
           'Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
     }
@@ -345,15 +338,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> validateToken(String email, String token) async {
     final uri = Uri.parse('$_baseUrl/users/register');
-    print('Enviando requisição de validação de token para: $uri');
-
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({'email': email, 'token': token}),
     );
 
-    print('Resposta da validação do token: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 200) {
@@ -375,16 +365,11 @@ class ApiService {
   Future<Map<String, dynamic>> register(
       Map<String, dynamic> registrationData) async {
     final uri = Uri.parse('$_baseUrl/users/register');
-    print('Enviando requisição de registo final para: $uri');
-    print('Payload do registo: ${jsonEncode(registrationData)}');
-
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode(registrationData),
     );
-
-    print('Resposta do registo final: ${response.statusCode}');
 
     if (response.statusCode == 201) {
       final responseData = jsonDecode(utf8.decode(response.bodyBytes));
@@ -393,6 +378,7 @@ class ApiService {
         responseData['cookie'] = rawCookie;
       }
       return responseData;
+
     } else {
       final errorBody = jsonDecode(utf8.decode(response.bodyBytes));
       String errorMessage =
@@ -400,12 +386,11 @@ class ApiService {
       throw Exception(errorMessage);
     }
   }
+  
 
   Future<Map<String, dynamic>> loginWithGoogle(String token,
       {double? latitude, double? longitude}) async {
     final uri = Uri.parse('$_baseUrl/auth/google');
-    print('Enviando requisição de login SSO para: $uri');
-
     final body = <String, dynamic>{'token': token};
     if (latitude != null && longitude != null) {
       body['latitude'] = latitude;
@@ -419,8 +404,6 @@ class ApiService {
         body: jsonEncode(body),
       );
 
-      print('Resposta do login SSO: ${response.statusCode}');
-
       if (response.statusCode == 200) {
         final responseData = jsonDecode(utf8.decode(response.bodyBytes));
         String? rawCookie = response.headers['set-cookie'];
@@ -433,7 +416,6 @@ class ApiService {
         throw Exception(errorBody['error'] ?? 'Falha no login com Google');
       }
     } on http.ClientException catch (e) {
-      print('Erro de cliente no login SSO: ${e.message}');
       throw Exception(
           'Não foi possível ligar ao servidor. Verifique a sua ligação e tente novamente.');
     }
@@ -441,15 +423,12 @@ class ApiService {
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     final uri = Uri.parse('$_baseUrl/auth/forgot-password');
-    print('Enviando requisição de esqueci a senha para: $uri');
-
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
       body: jsonEncode({'email': email}),
     );
 
-    print('Resposta do esqueci a senha: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 200) {
@@ -465,8 +444,6 @@ class ApiService {
     required String newPassword,
   }) async {
     final uri = Uri.parse('$_baseUrl/auth/reset-password');
-    print('Enviando requisição para redefinir a senha para: $uri');
-
     final response = await http.post(
       uri,
       headers: {'Content-Type': 'application/json; charset=UTF-8'},
@@ -476,7 +453,6 @@ class ApiService {
       }),
     );
 
-    print('Resposta da redefinição de senha: ${response.statusCode}');
     final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 200) {
@@ -514,7 +490,7 @@ class ApiService {
     PromotionType? promotionType,
   }) async {
     final queryParameters = <String, String>{};
-
+    
     if (latitude != null && longitude != null && radius != null) {
       queryParameters['latitude'] = latitude.toString();
       queryParameters['longitude'] = longitude.toString();
@@ -529,8 +505,6 @@ class ApiService {
       queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
     );
 
-    print('Enviando requisição para: $uri');
-
     final response = await http.get(
       uri,
       headers: {
@@ -542,8 +516,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else {
-      throw Exception(
-          'Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
+      throw Exception('Falha ao buscar promoções. Status: ${response.statusCode}, Body: ${response.body}');
     }
   }
 
@@ -557,12 +530,13 @@ class ApiService {
       return jsonDecode(utf8.decode(response.bodyBytes));
     } else if (response.statusCode == 404) {
       return [];
-    } else {
+    }
+    else {
       throw Exception('Falha ao buscar seus eventos');
     }
   }
 
-  Future<String?> uploadProfilePicture(File image, String cookie) async {
+Future<String?> uploadProfilePicture(File image, String cookie) async {
     final uri = Uri.parse('$_baseUrl/users/picture/upload');
     var request = http.MultipartRequest('POST', uri);
     request.headers['Cookie'] = cookie;

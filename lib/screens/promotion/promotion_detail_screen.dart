@@ -1,10 +1,11 @@
 // lib/screens/promotion/promotion_detail_screen.dart
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wtg_front/services/api_service.dart';
 
-// --- PALETA DE CORES (Consistente com o resto do app) ---
+// --- PALETA DE CORES ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
@@ -15,7 +16,6 @@ const Color fieldBorderColor = Color(0xFF4A5568);
 
 class PromotionDetailScreen extends StatefulWidget {
   final Map<String, dynamic> promotion;
-  // NOVOS: ID do usuário logado e cookie para fazer requisições
   final int currentUserId;
   final String cookie;
 
@@ -34,12 +34,26 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
   late Map<String, dynamic> _promotionData;
   final ApiService _apiService = ApiService();
 
+  // NOVO: Controladores para o campo de comentário
+  final TextEditingController _commentController = TextEditingController();
+  bool _isPostingComment = false;
+
   int _currentImageIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _promotionData = widget.promotion;
+    // Garante que a lista de comentários não seja nula
+    if (_promotionData['comments'] == null) {
+      _promotionData['comments'] = [];
+    }
+  }
+  
+  @override
+  void dispose() {
+    _commentController.dispose();
+    super.dispose();
   }
 
   Future<void> _openInGoogleMaps(double latitude, double longitude) async {
@@ -59,14 +73,47 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
     }
   }
 
-  // NOVO: Função para deletar comentário
+  // NOVO: Função para postar um novo comentário
+  Future<void> _postComment() async {
+    if (_commentController.text.trim().isEmpty) {
+      return; // Não envia comentários vazios
+    }
+    FocusScope.of(context).unfocus(); // Fecha o teclado
+    
+    setState(() => _isPostingComment = true);
+
+    try {
+      final newComment = await _apiService.createComment(
+        promotionId: _promotionData['id'],
+        comment: _commentController.text,
+        cookie: widget.cookie,
+      );
+
+      // Adiciona o novo comentário no início da lista e atualiza a tela
+      setState(() {
+        (_promotionData['comments'] as List).insert(0, newComment);
+        _commentController.clear();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao enviar comentário: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isPostingComment = false);
+      }
+    }
+  }
+
   Future<void> _deleteComment(int commentId) async {
-    // Exibe um diálogo de confirmação
     final bool confirm = await showDialog(
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Confirmar Exclusão'),
-            content: const Text('Você tem certeza que quer deletar este comentário?'),
+            content:
+                const Text('Você tem certeza que quer deletar este comentário?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -84,8 +131,6 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
     if (confirm) {
       try {
         await _apiService.deleteComment(commentId, widget.cookie);
-
-        // Atualiza a UI removendo o comentário da lista local
         setState(() {
           (_promotionData['comments'] as List)
               .removeWhere((comment) => comment['id'] == commentId);
@@ -99,7 +144,8 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erro ao deletar comentário: ${e.toString()}')),
+            SnackBar(
+                content: Text('Erro ao deletar comentário: ${e.toString()}')),
           );
         }
       }
@@ -118,22 +164,20 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
         iconTheme: const IconThemeData(color: primaryTextColor),
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              _buildEventDetailsCard(),
-              const SizedBox(height: 20),
-              // NOVO: Seção de comentários
-              _buildCommentsSection(),
-            ],
-          ),
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            _buildEventDetailsCard(),
+            const SizedBox(height: 20),
+            _buildCommentsSection(),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildEventDetailsCard() {
+    // ... (este widget não foi alterado, pode manter o seu código original)
     final isFree = _promotionData['free'] ?? false;
     final ticketValue = _promotionData['ticketValue'];
     final images = _promotionData['images'] as List<dynamic>? ?? [];
@@ -211,7 +255,7 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
     );
   }
 
-  // NOVO: Widget para a seção de comentários
+  // ATUALIZADO: Widget para a seção de comentários
   Widget _buildCommentsSection() {
     final comments = _promotionData['comments'] as List<dynamic>? ?? [];
 
@@ -232,49 +276,29 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
                 color: primaryTextColor),
           ),
           const SizedBox(height: 16),
+          // NOVO: Campo para adicionar comentário
+          _buildCommentInputField(),
+          const SizedBox(height: 20),
           if (comments.isEmpty)
             const Center(
-              child: Text(
-                'Ainda não há comentários. Seja o primeiro a comentar!',
-                style: TextStyle(color: secondaryTextColor),
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 24.0),
+                child: Text(
+                  'Ainda não há comentários. Seja o primeiro!',
+                  style: TextStyle(color: secondaryTextColor),
+                ),
               ),
             ),
           if (comments.isNotEmpty)
+            // NOVO: Lista de comentários com novo layout
             ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: comments.length,
               separatorBuilder: (_, __) =>
-                  const Divider(color: fieldBorderColor),
+                  const Divider(color: fieldBorderColor, height: 24),
               itemBuilder: (context, index) {
-                final comment = comments[index];
-                final bool isOwner = comment['userId'] == widget.currentUserId;
-
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const CircleAvatar(
-                    backgroundColor: accentColor,
-                    child: Icon(Icons.person, color: Colors.white),
-                  ),
-                  title: Text(
-                    comment['userFirstName'] ?? 'Usuário',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: primaryTextColor,
-                    ),
-                  ),
-                  subtitle: Text(
-                    comment['comment'] ?? '',
-                    style: const TextStyle(color: secondaryTextColor),
-                  ),
-                  trailing: isOwner
-                      ? IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: Colors.redAccent),
-                          onPressed: () => _deleteComment(comment['id']),
-                        )
-                      : null,
-                );
+                return _buildCommentItem(comments[index]);
               },
             ),
         ],
@@ -282,6 +306,117 @@ class _PromotionDetailScreenState extends State<PromotionDetailScreen> {
     );
   }
 
+  // NOVO: Widget para o campo de texto de novo comentário
+  Widget _buildCommentInputField() {
+    return Row(
+      children: [
+        const CircleAvatar(
+          backgroundColor: accentColor,
+          child: Icon(Icons.person, color: Colors.white),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: TextField(
+            controller: _commentController,
+            style: const TextStyle(color: primaryTextColor),
+            decoration: InputDecoration(
+              hintText: 'Adicione um comentário...',
+              hintStyle: const TextStyle(color: secondaryTextColor),
+              filled: true,
+              fillColor: darkBackgroundColor,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        _isPostingComment
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : IconButton(
+                icon: const Icon(Icons.send, color: commentsColor),
+                onPressed: _postComment,
+              ),
+      ],
+    );
+  }
+
+  // NOVO: Widget para cada item da lista de comentários
+  Widget _buildCommentItem(Map<String, dynamic> comment) {
+    final bool isOwner = comment['userId'] == widget.currentUserId;
+    final String name = comment['userFirstName'] ?? 'Usuário';
+    final String initials = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
+
+    String formattedDate = '';
+    if (comment['createdAt'] != null) {
+      try {
+        final dateTime = DateTime.parse(comment['createdAt']);
+        formattedDate = DateFormat('dd/MM/yy').format(dateTime);
+      } catch (e) {
+        // ignora se o formato da data for inválido
+      }
+    }
+    
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          backgroundColor: Colors.deepPurple,
+          child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: primaryTextColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    formattedDate,
+                    style: const TextStyle(color: secondaryTextColor, fontSize: 12),
+                  ),
+                  const Spacer(),
+                  if (isOwner)
+                    SizedBox(
+                      height: 24,
+                      width: 24,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.delete_outline,
+                            color: Colors.redAccent, size: 18),
+                        onPressed: () => _deleteComment(comment['id']),
+                      ),
+                    )
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                comment['comment'] ?? '',
+                style: const TextStyle(color: secondaryTextColor),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ... (widgets _buildImageCarousel, _buildInfoRow, _buildTag não foram alterados)
   Widget _buildImageCarousel(List<dynamic> images) {
     return Column(
       children: [

@@ -15,8 +15,9 @@ const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748); // Cor dos cards
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-const Color accentColor = Color(0xFF6A00FF); // Roxo para filtros e destaques
+const Color accentColor = Color(0xFF82589F); // Roxo para filtros e destaques
 const Color commentsColor = Color(0xFF4299E1); // Azul para comentários
+const Color mapIconColor = Color(0xFFF39C12);
 
 class HomeTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -233,7 +234,7 @@ class _HomeTabState extends State<HomeTab> {
               Text(
                 '${_currentRadius.toInt()} km',
                 style: const TextStyle(
-                  color: primaryButtonColor,
+                  color: mapIconColor,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -502,7 +503,7 @@ class _HomeTabState extends State<HomeTab> {
                           if (latitude != null && longitude != null)
                             IconButton(
                               icon: const Icon(Icons.map,
-                                  color: commentsColor, size: 24),
+                                  color: mapIconColor, size: 24),
                               onPressed: () =>
                                   _openInGoogleMaps(latitude, longitude),
                               tooltip: 'Ver no mapa',
