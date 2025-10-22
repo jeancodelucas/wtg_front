@@ -4,20 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/promotion/create_promotion_step1_screen.dart';
 
-// --- PALETA DE CORES PADRONIZADA (dark mode) ---
+// --- PALETA DE CORES (sem alterações) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748);
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-
-// Cores de status
-const Color visibleColor = Color(0xFF48BB78); // Verde
-const Color invisibleColor = Color(0xFFA0AEC0); // Cinza
-const Color freeColor = Color(0xFF38B2AC); // Ciano
-const Color paidColor = Color(0xFFF6AD55); // Laranja
-const Color commentsColor = Color(0xFF4299E1); // Azul
+const Color visibleColor = Color(0xFF48BB78);
+const Color invisibleColor = Color(0xFFA0AEC0);
+const Color freeColor = Color(0xFF38B2AC);
+const Color paidColor = Color(0xFFF6AD55);
+const Color commentsColor = Color(0xFF4299E1);
 
 class MyEventsTab extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
@@ -34,8 +32,10 @@ class _MyEventsTabState extends State<MyEventsTab> {
   Map<String, dynamic>? _promotion;
   List<String> _imageUrls = [];
   String? _error;
-
   int _currentImageIndex = 0;
+
+  // *** NOVO: Estado de loading para a exclusão ***
+  bool _isDeleting = false;
 
   @override
   void initState() {
@@ -44,6 +44,7 @@ class _MyEventsTabState extends State<MyEventsTab> {
   }
 
   Future<void> _fetchMyPromotion() async {
+    // ... (lógica inalterada)
     setState(() {
       _isLoading = true;
       _error = null;
@@ -91,19 +92,86 @@ class _MyEventsTabState extends State<MyEventsTab> {
     }
   }
 
+  // *** NOVO MÉTODO PARA EXIBIR DIÁLOGO DE CONFIRMAÇÃO E DELETAR ***
+  Future<void> _deletePromotion() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: fieldBackgroundColor,
+          title: const Text('Confirmar Exclusão', style: TextStyle(color: primaryTextColor)),
+          content: const Text('Tem certeza de que deseja excluir seu rolê? Esta ação não pode ser desfeita.', style: TextStyle(color: secondaryTextColor)),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar', style: TextStyle(color: secondaryTextColor)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Excluir', style: TextStyle(color: primaryButtonColor)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      setState(() => _isDeleting = true);
+      try {
+        final cookie = widget.loginResponse['cookie'] as String?;
+        final promotionId = _promotion?['id']?.toString();
+
+        if (cookie == null || promotionId == null) {
+          throw Exception('Não foi possível excluir o evento. Tente fazer login novamente.');
+        }
+
+        await _apiService.deletePromotion(promotionId, cookie);
+
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Seu rolê foi excluído com sucesso!')),
+          );
+          // Atualiza a tela para mostrar que não há mais evento
+          _fetchMyPromotion();
+        }
+      } catch (e) {
+        if(mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erro ao excluir: ${e.toString().replaceAll("Exception: ", "")}')),
+          );
+        }
+      } finally {
+        if(mounted) {
+          setState(() => _isDeleting = false);
+        }
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: darkBackgroundColor,
-      body: _buildContent(),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator(color: primaryButtonColor))
+        : _buildContent(), // Exibe o conteúdo ou a tela de "nenhum evento"
     );
   }
 
   Widget _buildContent() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: primaryButtonColor));
+    // ... (lógica de _buildContent inalterada, exceto pela adição do botão de excluir)
+    if (_isDeleting) {
+      return const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: primaryButtonColor),
+            SizedBox(height: 16),
+            Text('Excluindo seu rolê...', style: TextStyle(color: secondaryTextColor)),
+          ],
+        ),
+      );
     }
-
     if (_error != null) {
       if (_error == "Você ainda não possui um evento cadastrado.") {
         return _buildNoEventRegistered();
@@ -152,27 +220,52 @@ class _MyEventsTabState extends State<MyEventsTab> {
           _buildDetailsCard(),
           const SizedBox(height: 24),
           _buildPrimaryButton('Editar Evento', () async {
-            // *** MUDANÇA PRINCIPAL AQUI ***
             final result = await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => CreatePromotionStep1Screen(
                   loginResponse: widget.loginResponse,
                   promotion: _promotion,
-                  imageUrls: _imageUrls, // Passa as URLs das imagens
                 ),
               ),
             );
-            // Se a edição foi bem-sucedida, atualiza os dados da tela
             if (result == true) {
               _fetchMyPromotion();
             }
           }),
+          const SizedBox(height: 16),
+          // *** NOVO BOTÃO DE EXCLUIR ADICIONADO AQUI ***
+          _buildDeleteButton(),
         ],
       ),
     );
   }
 
-  Widget _buildNoEventRegistered() {
+  // *** NOVO WIDGET PARA O BOTÃO DE EXCLUIR ***
+  Widget _buildDeleteButton() {
+    return OutlinedButton(
+      onPressed: _deletePromotion,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primaryButtonColor,
+        minimumSize: const Size(double.infinity, 56),
+        side: const BorderSide(color: primaryButtonColor),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.delete_outline, size: 20),
+          SizedBox(width: 8),
+          Text(
+            'Excluir Evento',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ... (restante dos widgets de build inalterados)
+   Widget _buildNoEventRegistered() {
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32.0),

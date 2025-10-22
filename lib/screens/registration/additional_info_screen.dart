@@ -292,6 +292,7 @@ Future<void> _submitFinalRegistration() async {
            final tempPayload = { ...widget.registrationData };
            tempPayload['firstName'] = _nicknameController.text;
            tempPayload['fullName'] = _nicknameController.text;
+           tempPayload['userName'] = widget.registrationData['email'];
            tempPayload['cpf'] = _selectedDocumentType == DocumentType.cpf ? _cpfController.text.replaceAll(RegExp(r'[^0-9]'), '') : null;
            tempPayload['cnpj'] = _selectedDocumentType == DocumentType.cnpj ? _cnpjController.text.replaceAll(RegExp(r'[^0-9]'), '') : null;
 
@@ -321,6 +322,7 @@ Future<void> _submitFinalRegistration() async {
           "birthday": birthdateToSend,
           "pronouns": pronounToSend,
           "pictureUrl": pictureUrl, 
+          "userName": widget.registrationData['email'],
         };
 
         final updatedUser = await _apiService.updateUser(finalUserData, sessionCookie);
