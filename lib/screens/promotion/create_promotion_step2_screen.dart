@@ -1,6 +1,5 @@
 // lib/screens/promotion/create_promotion_step2_screen.dart
 
-// ... (imports e constantes inalterados) ...
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -12,20 +11,17 @@ import 'package:http/http.dart' as http;
 import 'package:wtg_front/services/location_service.dart';
 import 'create_promotion_step3_screen.dart';
 
-// --- PALETA DE CORES PADRONIZADA ---
+// --- PALETA DE CORES (sem alterações) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748);
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-
-// Cores do Breadcrumb
-const Color step1Color = Color(0xFF218c74); // Verde
-const Color step2Color = Color(0xFFF6AD55); // Laranja
-const Color accentColor = Color(0xFFF6AD55); // Laranja para a etapa 2
-const Color step3Color = Color(0xFFF56565); // Vermelho
-
+const Color step1Color = Color(0xFF218c74);
+const Color step2Color = Color(0xFFF6AD55);
+const Color accentColor = Color(0xFFF6AD55);
+const Color step3Color = Color(0xFFF56565);
 
 class CreatePromotionStep2Screen extends StatefulWidget {
   final Map<String, dynamic> promotionData;
@@ -38,13 +34,11 @@ class CreatePromotionStep2Screen extends StatefulWidget {
 
 class _CreatePromotionStep2ScreenState
     extends State<CreatePromotionStep2Screen> {
-  // ... (variáveis e initState inalterados) ...
   final _formKey = GlobalKey<FormState>();
   final _locationService = LocationService();
   bool _isLoading = false;
   bool _isFetchingCep = false;
 
-  // Controladores e FocusNode
   final _cepController = TextEditingController();
   final _cepFocusNode = FocusNode();
   final _ufController = TextEditingController();
@@ -79,7 +73,7 @@ class _CreatePromotionStep2ScreenState
       _fetchCurrentUserLocation();
     }
   }
-  
+
   void _loadDataForEditing() {
     final Map<String, dynamic> promo = widget.promotionData['promotion'];
     final Map<String, dynamic>? address = promo['address'];
@@ -94,13 +88,13 @@ class _CreatePromotionStep2ScreenState
       _complementoController.text = address['complement'] ?? '';
       _pontoReferenciaController.text = address['reference'] ?? '';
     }
-    
+
     final lat = promo['latitude'] as double?;
     final lon = promo['longitude'] as double?;
     if (lat != null && lon != null) {
       _updateMapLocation(LatLng(lat, lon));
     } else {
-      _fetchCurrentUserLocation(); // Fallback para localização atual se não houver coordenadas
+      _fetchCurrentUserLocation();
     }
     setState(() => _mapIsLoading = false);
   }
@@ -128,7 +122,6 @@ class _CreatePromotionStep2ScreenState
     if (position != null) {
       _updateMapLocation(LatLng(position.latitude, position.longitude));
     } else {
-      // Fallback para uma localização padrão (Recife)
       _updateMapLocation(const LatLng(-8.057838, -34.870639));
     }
     setState(() => _mapIsLoading = false);
@@ -159,9 +152,10 @@ class _CreatePromotionStep2ScreenState
         throw Exception('Não foi possível buscar o CEP.');
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(e.toString().replaceAll("Exception: ", ""))));
+      }
     } finally {
       if (mounted) setState(() => _isFetchingCep = false);
     }
@@ -204,8 +198,6 @@ class _CreatePromotionStep2ScreenState
     });
   }
 
-
-  // *** MÉTODO ATUALIZADO ***
   void _continueToNextStep() async {
     if (!_formKey.currentState!.validate()) return;
     if (_currentLatLng == null) {
@@ -215,7 +207,7 @@ class _CreatePromotionStep2ScreenState
     }
 
     final fullPromotionData = {
-      ...widget.promotionData,
+      ...widget.promotionData, // Isso já inclui 'removedImages' da tela anterior
       'addressData': {
         "address": _logradouroController.text,
         "number": _numeroController.text,
@@ -230,7 +222,6 @@ class _CreatePromotionStep2ScreenState
       'coordinates': _currentLatLng,
     };
 
-    // Espera o resultado da tela 3
     final result = await Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => CreatePromotionStep3Screen(
         promotionData: fullPromotionData,
@@ -238,14 +229,14 @@ class _CreatePromotionStep2ScreenState
       ),
     ));
 
-    // Se o resultado for 'true', retorna 'true' para a tela anterior (Step 1)
     if (result == true) {
       Navigator.of(context).pop(true);
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
+    // ... O resto do build method permanece o mesmo
     return Scaffold(
       backgroundColor: darkBackgroundColor,
       appBar: AppBar(

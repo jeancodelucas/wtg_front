@@ -21,14 +21,13 @@ const Color step3Color = Color(0xFFF56565);
 class CreatePromotionStep1Screen extends StatefulWidget {
   final Map<String, dynamic> loginResponse;
   final Map<String, dynamic>? promotion;
-  // *** NOVO PARÂMETRO ***
   final List<String>? imageUrls;
 
   const CreatePromotionStep1Screen({
-    super.key, 
-    required this.loginResponse, 
+    super.key,
+    required this.loginResponse,
     this.promotion,
-    this.imageUrls, // Recebe as URLs
+    this.imageUrls,
   });
 
   @override
@@ -42,8 +41,9 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
   final _infoController = TextEditingController();
   final _obsController = TextEditingController();
   final _ticketValueController = TextEditingController();
-  // *** LISTA ATUALIZADA para aceitar URLs (String) e Arquivos (File) ***
   final List<dynamic> _images = [];
+  // *** NOVA LISTA para rastrear imagens removidas ***
+  final List<String> _removedImages = [];
   final ImagePicker _picker = ImagePicker();
   PromotionType? _selectedPromotionType;
   bool _isFree = true;
@@ -64,7 +64,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         _ticketValueController.text = promo['ticketValue'].toString().replaceAll('.', ',');
       }
       
-      // *** CORREÇÃO AQUI: Usa 'promotionType' em vez de 'type' ***
       final typeString = promo['promotionType'] as String?;
       if (typeString != null) {
         try {
@@ -76,7 +75,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         }
       }
       
-      // *** NOVO: Carrega as imagens existentes na lista ***
       if (widget.imageUrls != null) {
         _images.addAll(widget.imageUrls!);
       }
@@ -107,12 +105,18 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     }
   }
 
+  // *** MÉTODO ATUALIZADO para rastrear remoções ***
   void _removeImage(int index) {
     setState(() {
-      _images.removeAt(index);
+      final removedItem = _images.removeAt(index);
+      // Se o item removido era uma URL (String), adiciona à lista de remoção
+      if (removedItem is String) {
+        _removedImages.add(removedItem);
+      }
     });
   }
 
+  // *** MÉTODO ATUALIZADO para passar a lista de remoção ***
   void _continueToNextStep() async {
     if (_formKey.currentState!.validate()) {
       if (_images.isEmpty && !_isEditing) {
@@ -121,7 +125,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         return;
       }
 
-      // *** NOVO: Separa as imagens novas (File) das existentes (String) ***
       final newImages = _images.whereType<File>().toList();
 
       final promotionData = {
@@ -134,7 +137,8 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'ticketValue':
             !_isFree ? _ticketValueController.text.replaceAll(',', '.') : null,
         'active': true,
-        'images': newImages, // Envia apenas as novas imagens
+        'images': newImages,
+        'removedImages': _removedImages, // <-- Passa a lista de remoção
         'loginResponse': widget.loginResponse,
       };
       
@@ -302,7 +306,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     );
   }
 
-  // *** WIDGET ATUALIZADO para lidar com a lista mista ***
   Widget _buildImageGrid() {
     return GridView.builder(
       shrinkWrap: true,
@@ -317,9 +320,9 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
       itemBuilder: (context, index) {
         if (index < _images.length) {
           final image = _images[index];
-          if (image is String) { // Se for uma URL
+          if (image is String) {
             return _buildNetworkImageItem(image, index);
-          } else if (image is File) { // Se for um Arquivo
+          } else if (image is File) {
             return _buildImageItem(image, index);
           }
         }
@@ -328,7 +331,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     );
   }
   
-  // *** NOVO WIDGET para exibir imagens da internet ***
   Widget _buildNetworkImageItem(String imageUrl, int index) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16.0),

@@ -3,7 +3,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/main_screen.dart';
 
@@ -53,8 +52,8 @@ class _CreatePromotionStep3ScreenState
     setState(() => _isLoading = true);
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? cookie = prefs.getString('session_cookie');
+      // *** MUDANÇA PRINCIPAL AQUI: Pega o cookie do loginResponse ***
+      final String? cookie = widget.loginResponse['cookie'] as String?;
       if (cookie == null) {
         throw Exception('Sessão expirada. Faça o login novamente.');
       }
@@ -96,16 +95,29 @@ class _CreatePromotionStep3ScreenState
         }
         
         final List<File> newImages = widget.promotionData['images'];
-        await _apiService.updatePromotion(promotionId, promotionDataPayload, newImages, cookie);
+        final List<String> removedImages = 
+            List<String>.from(widget.promotionData['removedImages'] ?? []);
+        
+        // Adicionando um log para ter certeza do que está sendo enviado
+        print("Enviando para atualização:");
+        print(" - Novas Imagens: ${newImages.length}");
+        print(" - Imagens Removidas: $removedImages");
+
+        await _apiService.updatePromotion(
+            promotionId, 
+            promotionDataPayload, 
+            newImages, 
+            removedImages,
+            cookie
+        );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Seu rolê foi atualizado com sucesso!')));
-          // *** MUDANÇA PRINCIPAL AQUI ***
-          // Retorna 'true' para a tela anterior (Step 2)
           Navigator.of(context).pop(true);
         }
       } else {
+        // Lógica de criação (inalterada)
         final createResponse =
             await _apiService.createPromotion(promotionDataPayload, cookie);
         final newPromotionId = createResponse['id']?.toString();
@@ -144,10 +156,11 @@ class _CreatePromotionStep3ScreenState
 
   @override
   Widget build(BuildContext context) {
+    // ... O resto do build method permanece o mesmo
     final titleText = _isEditing
         ? 'Tudo pronto para\natualizar seu rolê!'
         : 'Seu rolê foi cadastrado\ncom sucesso!';
-    // O resto do build method continua igual...
+
     return Scaffold(
       backgroundColor: darkBackgroundColor,
       appBar: AppBar(

@@ -11,6 +11,7 @@ class ApiService {
   final String _baseUrl = _getBaseUrl();
 
   static String _getBaseUrl() {
+    // ... (código inalterado)
     if (Platform.isAndroid) {
       return 'http://10.0.2.2:8080/api';
     } else {
@@ -18,28 +19,37 @@ class ApiService {
     }
   }
 
-  // --- MÉTODO DE ATUALIZAÇÃO CORRIGIDO PARA MULTIPART ---
-  Future<Map<String, dynamic>> updatePromotion(String promotionId, Map<String, dynamic> promotionData, List<File> newImages, String cookie) async {
+  Future<Map<String, dynamic>> updatePromotion(
+      String promotionId,
+      Map<String, dynamic> promotionData,
+      List<File> newImages,
+      List<String> removedImageUrls, // <-- Parâmetro já está correto
+      String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions/$promotionId/edit');
     print('Enviando requisição MULTIPART para ATUALIZAR promoção: $uri');
+    print('Imagens a remover: $removedImageUrls'); // Log para depuração
 
     var request = http.MultipartRequest('PUT', uri);
     request.headers['Cookie'] = cookie;
-    
-    // 1. Prepara o payload de dados (o DTO)
+
     final Map<String, dynamic> payload = Map.from(promotionData);
     if (payload['promotionType'] != null) {
       if (payload['promotionType'] is PromotionType) {
-        payload['promotionType'] = (payload['promotionType'] as PromotionType).name.toUpperCase();
+        payload['promotionType'] =
+            (payload['promotionType'] as PromotionType).name.toUpperCase();
       } else if (payload['promotionType'] is String) {
-        payload['promotionType'] = (payload['promotionType'] as String).toUpperCase();
+        payload['promotionType'] =
+            (payload['promotionType'] as String).toUpperCase();
       }
     }
+    
+    payload['removedImageUrls'] = removedImageUrls;
+
     payload.remove('images');
     payload.remove('loginResponse');
     payload.remove('promotion');
-    
-    // 2. Adiciona o JSON como uma parte do formulário chamada "dto"
+    payload.remove('removedImages'); 
+
     request.files.add(
       http.MultipartFile.fromString(
         'dto',
@@ -48,7 +58,6 @@ class ApiService {
       ),
     );
 
-    // 3. Adiciona as novas imagens como uma parte do formulário chamada "images"
     for (var imageFile in newImages) {
       final mimeType = lookupMimeType(imageFile.path);
       final mediaType = mimeType != null ? MediaType.parse(mimeType) : null;
@@ -60,12 +69,12 @@ class ApiService {
         ),
       );
     }
-    
-    // 4. Envia a requisição
+
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
     print('Resposta da atualização: ${response.statusCode}');
+    print('Corpo da resposta: ${response.body}');
 
     if (response.statusCode == 200) {
       return jsonDecode(utf8.decode(response.bodyBytes));
@@ -75,6 +84,7 @@ class ApiService {
     }
   }
 
+  // ... (restante do código do api_service.dart inalterado)
   Future<Map<String, dynamic>> createPromotion(
       Map<String, dynamic> promotionData, String cookie) async {
     final uri = Uri.parse('$_baseUrl/promotions');
