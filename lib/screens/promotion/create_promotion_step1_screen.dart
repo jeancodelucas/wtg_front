@@ -1,5 +1,6 @@
 // lib/screens/promotion/create_promotion_step1_screen.dart
 
+// ... (imports e constantes inalterados) ...
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -33,6 +34,7 @@ class CreatePromotionStep1Screen extends StatefulWidget {
 }
 
 class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen> {
+  // ... (variáveis e initState inalterados) ...
   final _formKey = GlobalKey<FormState>();
   final _nomeController = TextEditingController();
   final _infoController = TextEditingController();
@@ -105,9 +107,10 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
     });
   }
 
-  void _continueToNextStep() {
+
+  // *** MÉTODO ATUALIZADO ***
+  void _continueToNextStep() async {
     if (_formKey.currentState!.validate()) {
-      // Exige imagem apenas na criação
       if (_selectedImages.isEmpty && !_isEditing) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Por favor, adicione pelo menos uma imagem.')));
@@ -115,7 +118,6 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
       }
 
       final promotionData = {
-        // --- MUDANÇA: Passa o objeto de promoção original para as próximas telas ---
         'promotion': widget.promotion,
         'title': _nomeController.text,
         'description': _infoController.text,
@@ -129,14 +131,20 @@ class _CreatePromotionStep1ScreenState extends State<CreatePromotionStep1Screen>
         'loginResponse': widget.loginResponse,
       };
       
-      Navigator.of(context).push(MaterialPageRoute(
+      // Espera o resultado da tela 2
+      final result = await Navigator.of(context).push(MaterialPageRoute(
         builder: (context) =>
             CreatePromotionStep2Screen(promotionData: promotionData),
       ));
+
+      // Se o resultado for 'true', retorna 'true' para a tela anterior (MyEventsTab)
+      if (result == true) {
+        Navigator.of(context).pop(true);
+      }
     }
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: darkBackgroundColor,

@@ -1,5 +1,6 @@
 // lib/screens/promotion/create_promotion_step2_screen.dart
 
+// ... (imports e constantes inalterados) ...
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
@@ -25,6 +26,7 @@ const Color step2Color = Color(0xFFF6AD55); // Laranja
 const Color accentColor = Color(0xFFF6AD55); // Laranja para a etapa 2
 const Color step3Color = Color(0xFFF56565); // Vermelho
 
+
 class CreatePromotionStep2Screen extends StatefulWidget {
   final Map<String, dynamic> promotionData;
   const CreatePromotionStep2Screen({super.key, required this.promotionData});
@@ -36,6 +38,7 @@ class CreatePromotionStep2Screen extends StatefulWidget {
 
 class _CreatePromotionStep2ScreenState
     extends State<CreatePromotionStep2Screen> {
+  // ... (variáveis e initState inalterados) ...
   final _formKey = GlobalKey<FormState>();
   final _locationService = LocationService();
   bool _isLoading = false;
@@ -201,7 +204,9 @@ class _CreatePromotionStep2ScreenState
     });
   }
 
-  void _continueToNextStep() {
+
+  // *** MÉTODO ATUALIZADO ***
+  void _continueToNextStep() async {
     if (!_formKey.currentState!.validate()) return;
     if (_currentLatLng == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -225,12 +230,18 @@ class _CreatePromotionStep2ScreenState
       'coordinates': _currentLatLng,
     };
 
-    Navigator.of(context).push(MaterialPageRoute(
+    // Espera o resultado da tela 3
+    final result = await Navigator.of(context).push(MaterialPageRoute(
       builder: (context) => CreatePromotionStep3Screen(
         promotionData: fullPromotionData,
         loginResponse: widget.promotionData['loginResponse'],
       ),
     ));
+
+    // Se o resultado for 'true', retorna 'true' para a tela anterior (Step 1)
+    if (result == true) {
+      Navigator.of(context).pop(true);
+    }
   }
   
   @override

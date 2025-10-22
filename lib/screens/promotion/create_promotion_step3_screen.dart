@@ -7,18 +7,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/main_screen.dart';
 
-// --- PALETA DE CORES PADRONIZADA ---
+// --- PALETA DE CORES (sem alterações) ---
 const Color darkBackgroundColor = Color(0xFF1A202C);
 const Color primaryTextColor = Colors.white;
 const Color secondaryTextColor = Color(0xFFA0AEC0);
 const Color fieldBackgroundColor = Color(0xFF2D3748);
 const Color fieldBorderColor = Color(0xFF4A5568);
 const Color primaryButtonColor = Color(0xFFE53E3E);
-
-// Cores do Breadcrumb
-const Color step1Color = Color(0xFF218c74); // Verde
-const Color step2Color = Color(0xFFF6AD55); // Laranja
-const Color accentColor = Color(0xFFF56565); // Vermelho para a etapa 3
+const Color step1Color = Color(0xFF218c74);
+const Color step2Color = Color(0xFFF6AD55);
+const Color accentColor = Color(0xFFF56565);
 
 class CreatePromotionStep3Screen extends StatefulWidget {
   final Map<String, dynamic> promotionData;
@@ -41,19 +39,16 @@ class _CreatePromotionStep3ScreenState
   bool _isLoading = false;
   bool _isVisible = true;
 
-  // --- NOVO: Flag para verificar se está em modo de edição ---
   bool get _isEditing => widget.promotionData['promotion'] != null;
 
   @override
   void initState() {
     super.initState();
-    // --- NOVO: Preenche o valor de _isVisible com o dado da promoção em edição ---
     if (_isEditing) {
       _isVisible = widget.promotionData['promotion']['active'] ?? true;
     }
   }
 
-  // --- LÓGICA ATUALIZADA PARA LIDAR COM CRIAÇÃO E EDIÇÃO ---
   Future<void> _submitFinalPromotion() async {
     setState(() => _isLoading = true);
 
@@ -69,7 +64,6 @@ class _CreatePromotionStep3ScreenState
           widget.promotionData['addressData'];
       final bool isFree = widget.promotionData['free'] as bool;
 
-      // Monta o payload base
       final Map<String, dynamic> promotionDataPayload = {
         "title": widget.promotionData['title'],
         "description": widget.promotionData['description'],
@@ -95,28 +89,23 @@ class _CreatePromotionStep3ScreenState
         promotionDataPayload['ticketValue'] = ticketValue;
       }
 
-      // --- LÓGICA CONDICIONAL: ATUALIZAR OU CRIAR ---
       if (_isEditing) {
-        // --- MODO DE EDIÇÃO ---
         final promotionId = widget.promotionData['promotion']['id']?.toString();
         if (promotionId == null) {
           throw Exception('Não foi possível obter o ID da promoção para editar.');
         }
         
         final List<File> newImages = widget.promotionData['images'];
-
         await _apiService.updatePromotion(promotionId, promotionDataPayload, newImages, cookie);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Seu rolê foi atualizado com sucesso!')));
-          // --- NOVO: Retorna para a tela de "Meus Eventos" ---
-          int count = 0;
-          Navigator.of(context).popUntil((_) => count++ >= 3);
+          // *** MUDANÇA PRINCIPAL AQUI ***
+          // Retorna 'true' para a tela anterior (Step 2)
+          Navigator.of(context).pop(true);
         }
-
       } else {
-        // --- MODO DE CRIAÇÃO (LÓGICA ORIGINAL) ---
         final createResponse =
             await _apiService.createPromotion(promotionDataPayload, cookie);
         final newPromotionId = createResponse['id']?.toString();
@@ -152,16 +141,13 @@ class _CreatePromotionStep3ScreenState
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  
-  // O restante do código (build method e widgets) permanece o mesmo
 
   @override
   Widget build(BuildContext context) {
-    // --- NOVO: Altera o texto da tela se estiver em modo de edição ---
     final titleText = _isEditing
         ? 'Tudo pronto para\natualizar seu rolê!'
         : 'Seu rolê foi cadastrado\ncom sucesso!';
-
+    // O resto do build method continua igual...
     return Scaffold(
       backgroundColor: darkBackgroundColor,
       appBar: AppBar(
@@ -190,7 +176,7 @@ class _CreatePromotionStep3ScreenState
               ),
               const SizedBox(height: 24),
               Text(
-                titleText, // --- TEXTO DINÂMICO AQUI ---
+                titleText,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 26,
