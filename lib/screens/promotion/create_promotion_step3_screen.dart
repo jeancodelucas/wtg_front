@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-//import 'package:wtg_front/screens/home_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
 import 'package:wtg_front/screens/main_screen.dart';
 
@@ -42,21 +41,35 @@ class _CreatePromotionStep3ScreenState
   bool _isLoading = false;
   bool _isVisible = true;
 
-  // --- NENHUMA ALTERAÇÃO NA LÓGICA ABAIXO ---
+  // --- NOVO: Flag para verificar se está em modo de edição ---
+  bool get _isEditing => widget.promotionData['promotion'] != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // --- NOVO: Preenche o valor de _isVisible com o dado da promoção em edição ---
+    if (_isEditing) {
+      _isVisible = widget.promotionData['promotion']['active'] ?? true;
+    }
+  }
+
+  // --- LÓGICA ATUALIZADA PARA LIDAR COM CRIAÇÃO E EDIÇÃO ---
   Future<void> _submitFinalPromotion() async {
     setState(() => _isLoading = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? cookie = prefs.getString('session_cookie');
-      if (cookie == null)
+      if (cookie == null) {
         throw Exception('Sessão expirada. Faça o login novamente.');
+      }
 
       final LatLng coordinates = widget.promotionData['coordinates'];
       final Map<String, dynamic> addressData =
           widget.promotionData['addressData'];
       final bool isFree = widget.promotionData['free'] as bool;
 
+      // Monta o payload base
       final Map<String, dynamic> promotionDataPayload = {
         "title": widget.promotionData['title'],
         "description": widget.promotionData['description'],
@@ -82,45 +95,73 @@ class _CreatePromotionStep3ScreenState
         promotionDataPayload['ticketValue'] = ticketValue;
       }
 
-      final createResponse =
-          await _apiService.createPromotion(promotionDataPayload, cookie);
-      final newPromotionId = createResponse['id']?.toString();
-      if (newPromotionId == null)
-        throw Exception('Não foi possível obter o ID da promoção criada.');
+      // --- LÓGICA CONDICIONAL: ATUALIZAR OU CRIAR ---
+      if (_isEditing) {
+        // --- MODO DE EDIÇÃO ---
+        final promotionId = widget.promotionData['promotion']['id']?.toString();
+        if (promotionId == null) {
+          throw Exception('Não foi possível obter o ID da promoção para editar.');
+        }
+        
+        final List<File> newImages = widget.promotionData['images'];
 
-      // --- LINHA DE CÓDIGO RESTAURADA ---
-      final List<File> images = widget.promotionData['images'];
-      if (images.isNotEmpty) {
-        await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
-      }
-      
-      await _apiService.completePromotionRegistration(newPromotionId, cookie);
+        await _apiService.updatePromotion(promotionId, promotionDataPayload, newImages, cookie);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (context) => MainScreen(loginResponse: widget.loginResponse),
-          ),
-          (route) => false,
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Seu rolê foi atualizado com sucesso!')));
+          // --- NOVO: Retorna para a tela de "Meus Eventos" ---
+          int count = 0;
+          Navigator.of(context).popUntil((_) => count++ >= 3);
+        }
+
+      } else {
+        // --- MODO DE CRIAÇÃO (LÓGICA ORIGINAL) ---
+        final createResponse =
+            await _apiService.createPromotion(promotionDataPayload, cookie);
+        final newPromotionId = createResponse['id']?.toString();
+        if (newPromotionId == null) {
+          throw Exception('Não foi possível obter o ID da promoção criada.');
+        }
+
+        final List<File> images = widget.promotionData['images'];
+        if (images.isNotEmpty) {
+          await _apiService.uploadPromotionImages(newPromotionId, images, cookie);
+        }
+        
+        await _apiService.completePromotionRegistration(newPromotionId, cookie);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Seu rolê foi cadastrado com sucesso!')));
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (context) => MainScreen(loginResponse: widget.loginResponse),
+            ),
+            (route) => false,
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
             content: Text(
-                'Erro ao cadastrar: ${e.toString().replaceAll("Exception: ", "")}')));
+                'Erro ao finalizar: ${e.toString().replaceAll("Exception: ", "")}')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-
-  // --- BUILD METHOD E WIDGETS DE UI ATUALIZADOS ---
+  
+  // O restante do código (build method e widgets) permanece o mesmo
 
   @override
   Widget build(BuildContext context) {
+    // --- NOVO: Altera o texto da tela se estiver em modo de edição ---
+    final titleText = _isEditing
+        ? 'Tudo pronto para\natualizar seu rolê!'
+        : 'Seu rolê foi cadastrado\ncom sucesso!';
+
     return Scaffold(
       backgroundColor: darkBackgroundColor,
       appBar: AppBar(
@@ -148,10 +189,10 @@ class _CreatePromotionStep3ScreenState
                     color: accentColor, size: 64),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'Seu rolê foi cadastrado\ncom sucesso!',
+              Text(
+                titleText, // --- TEXTO DINÂMICO AQUI ---
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                   color: primaryTextColor,
