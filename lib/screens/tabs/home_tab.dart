@@ -57,7 +57,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Future<void> _fetchData() async {
-    if (!mounted) return;
+    // ... (código inalterado) ...
+     if (!mounted) return;
     setState(() => _isLoading = true);
 
     final cookie = widget.loginResponse['cookie'] as String?;
@@ -102,7 +103,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   void _applyFilters() {
-    if (!mounted) return;
+    // ... (código inalterado) ...
+     if (!mounted) return;
 
     List<dynamic> promotionsToShow = List.from(_allPromotions);
 
@@ -137,7 +139,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   void _navigateToDetail(int promotionId) async {
-    final cookie = widget.loginResponse['cookie'] as String?;
+    // ... (código inalterado) ...
+     final cookie = widget.loginResponse['cookie'] as String?;
     if (cookie == null) return;
 
     showDialog(
@@ -152,7 +155,7 @@ class _HomeTabState extends State<HomeTab> {
     try {
       final promotionDetails =
           await _apiService.getPromotionDetail(promotionId, cookie);
-      if (mounted) Navigator.pop(context); 
+      if (mounted) Navigator.pop(context);
 
       if (mounted) {
         Navigator.push(
@@ -167,7 +170,7 @@ class _HomeTabState extends State<HomeTab> {
         );
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context); 
+      if (mounted) Navigator.pop(context);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao carregar detalhes: ${e.toString()}')),
@@ -176,22 +179,31 @@ class _HomeTabState extends State<HomeTab> {
     }
   }
 
+  // *** FUNÇÃO CORRIGIDA PARA USAR COORDENADAS ***
   Future<void> _openInGoogleMaps(double latitude, double longitude) async {
-    final Uri googleMapsUrl =
-        Uri.parse('http://googleusercontent.com/maps/google.com/0');
+    // Tenta montar a URL para abrir diretamente no app Google Maps
+    final Uri appMapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+    // Monta a URL para abrir no navegador web
+    final Uri webMapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
 
-    if (await canLaunchUrl(googleMapsUrl)) {
-      await launchUrl(googleMapsUrl);
+    if (await canLaunchUrl(appMapUri)) {
+      // Tenta abrir o App
+      await launchUrl(appMapUri);
+    } else if (await canLaunchUrl(webMapUri)) {
+      // Se não conseguir abrir o app, tenta abrir a URL web
+      await launchUrl(webMapUri);
     } else {
+       // Se nenhum dos dois funcionar, mostra mensagem de erro
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível abrir o Google Maps.'),
+            content: Text('Não foi possível abrir nenhum app de mapa.'),
           ),
         );
       }
     }
   }
+  // *** FIM DA CORREÇÃO ***
 
   @override
   Widget build(BuildContext context) {
@@ -200,15 +212,10 @@ class _HomeTabState extends State<HomeTab> {
       body: SafeArea(
         child: Column(
           children: [
-            // *** REMOÇÃO DO LOGO QUE ESTAVA AQUI ***
-
-            // Card de Filtros/Destaques
             Padding(
-              // Padding superior restaurado para 16.0
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0), 
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
               child: _buildFiltersAndHighlightsCard(_highlightedPromotions),
             ),
-            // Lista principal
             Expanded(
               child: _buildContent(),
             ),
@@ -218,8 +225,8 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-
   Widget _buildFiltersAndHighlightsCard(List<dynamic> highlights) {
+    // ... (código inalterado) ...
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -242,7 +249,7 @@ class _HomeTabState extends State<HomeTab> {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 102, 
+              height: 102,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 itemCount: highlights.length,
@@ -364,7 +371,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildHighlightItem(Map<String, dynamic> promotion) {
-    final images = promotion['images'] as List<dynamic>? ?? [];
+    // ... (código inalterado) ...
+        final images = promotion['images'] as List<dynamic>? ?? [];
     final imageUrl = images.isNotEmpty ? images[0]['presignedUrl'] : null;
     final title = promotion['title'] ?? 'Rolê em Destaque';
     final promotionId = promotion['id'];
@@ -429,7 +437,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
  Widget _buildHighlightImage(String? imageUrl) {
-    return AspectRatio( 
+    // ... (código inalterado) ...
+     return AspectRatio( 
       aspectRatio: 16 / 9,
       child: Container(
         color: fieldBackgroundColor, 
@@ -472,6 +481,7 @@ class _HomeTabState extends State<HomeTab> {
     required bool isSelected,
     required VoidCallback onSelected,
   }) {
+    // ... (código inalterado) ...
     return Padding(
       padding: const EdgeInsets.only(right: 8.0),
       child: ActionChip(
@@ -500,6 +510,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildContent() {
+    // ... (código inalterado) ...
     if (_isLoading) {
       return const Center(
           child: CircularProgressIndicator(color: primaryButtonColor));
@@ -534,6 +545,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildImageWidget(String? imageUrl) {
+    // ... (código inalterado) ...
     return AspectRatio(
       aspectRatio: 1.0,
       child: ClipRRect(
@@ -579,6 +591,7 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildEventCard(Map<String, dynamic> promotion) {
+    // ... (código inalterado - a chamada a _openInGoogleMaps já está correta aqui) ...
     final addressInfo = promotion['address'];
     final isFree = promotion['free'] ?? false;
     final ticketValue = promotion['ticketValue'];
@@ -683,7 +696,7 @@ class _HomeTabState extends State<HomeTab> {
                               icon: const Icon(Icons.map,
                                   color: mapIconColor, size: 24),
                               onPressed: () =>
-                                  _openInGoogleMaps(latitude, longitude),
+                                  _openInGoogleMaps(latitude, longitude), // Chama a função corrigida
                               tooltip: 'Ver no mapa',
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
@@ -712,7 +725,8 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildDetailRow(IconData icon, String label, String value) {
-    if (value == 'Não informado' || value.isEmpty) {
+    // ... (código inalterado) ...
+     if (value == 'Não informado' || value.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -752,6 +766,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _buildTag(
       {required String text, required Color color, required IconData icon}) {
+    // ... (código inalterado) ...
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
