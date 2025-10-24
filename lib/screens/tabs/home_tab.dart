@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'dart:ui' as ui;
+
 import 'package:wtg_front/models/promotion_type.dart';
 import 'package:wtg_front/screens/promotion/promotion_detail_screen.dart';
 import 'package:wtg_front/services/api_service.dart';
@@ -37,6 +39,7 @@ class _HomeTabState extends State<HomeTab> {
 
   List<dynamic> _allPromotions = [];
   List<dynamic> _filteredPromotions = [];
+  List<dynamic> _highlightedPromotions = [];
 
   double _currentRadius = 10.0;
   PromotionType? _selectedType;
@@ -80,6 +83,9 @@ class _HomeTabState extends State<HomeTab> {
       if (mounted) {
         setState(() {
           _allPromotions = promotions;
+          _highlightedPromotions = _allPromotions
+              .where((p) => p['highlight'] == true)
+              .toList();
           _isLoading = false;
           _error = null;
         });
@@ -102,7 +108,6 @@ class _HomeTabState extends State<HomeTab> {
 
     if (_selectedType != null) {
       promotionsToShow = promotionsToShow.where((p) {
-        // CORREÇÃO SUTIL: A chave no JSON da API de filtro é 'promotionType'
         final typeString = p['promotionType'] as String?;
         return typeString?.toLowerCase() == _selectedType!.name.toLowerCase();
       }).toList();
@@ -131,7 +136,6 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
-  // NOVA FUNÇÃO DE NAVEGAÇÃO QUE CHAMA O ENDPOINT DE DETALHES
   void _navigateToDetail(int promotionId) async {
     final cookie = widget.loginResponse['cookie'] as String?;
     if (cookie == null) return;
@@ -140,13 +144,15 @@ class _HomeTabState extends State<HomeTab> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return const Center(child: CircularProgressIndicator(color: primaryButtonColor));
+        return const Center(
+            child: CircularProgressIndicator(color: primaryButtonColor));
       },
     );
 
     try {
-      final promotionDetails = await _apiService.getPromotionDetail(promotionId, cookie);
-      if (mounted) Navigator.pop(context);
+      final promotionDetails =
+          await _apiService.getPromotionDetail(promotionId, cookie);
+      if (mounted) Navigator.pop(context); 
 
       if (mounted) {
         Navigator.push(
@@ -161,7 +167,7 @@ class _HomeTabState extends State<HomeTab> {
         );
       }
     } catch (e) {
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao carregar detalhes: ${e.toString()}')),
@@ -172,7 +178,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<void> _openInGoogleMaps(double latitude, double longitude) async {
     final Uri googleMapsUrl =
-        Uri.parse('https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
+        Uri.parse('http://googleusercontent.com/maps/google.com/0');
 
     if (await canLaunchUrl(googleMapsUrl)) {
       await launchUrl(googleMapsUrl);
@@ -194,10 +200,15 @@ class _HomeTabState extends State<HomeTab> {
       body: SafeArea(
         child: Column(
           children: [
+            // *** REMOÇÃO DO LOGO QUE ESTAVA AQUI ***
+
+            // Card de Filtros/Destaques
             Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
-              child: _buildFiltersCard(),
+              // Padding superior restaurado para 16.0
+              padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0), 
+              child: _buildFiltersAndHighlightsCard(_highlightedPromotions),
             ),
+            // Lista principal
             Expanded(
               child: _buildContent(),
             ),
@@ -207,7 +218,8 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildFiltersCard() {
+
+  Widget _buildFiltersAndHighlightsCard(List<dynamic> highlights) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -216,50 +228,108 @@ class _HomeTabState extends State<HomeTab> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Seção de Destaques
+          if (!_isLoading && highlights.isNotEmpty) ...[
+            const Text(
+              'Destaques',
+              style: TextStyle(
+                color: primaryTextColor,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 102, 
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: highlights.length,
+                itemBuilder: (context, index) {
+                  final promotion = highlights[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index == highlights.length - 1 ? 0 : 12,
+                    ),
+                    child: _buildHighlightItem(promotion),
+                  );
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 12), 
+
+            const Divider(color: fieldBorderColor, height: 1),
+            const SizedBox(height: 12),
+          ],
+
+          // Filtro de Raio
           Row(
             children: [
               const Icon(Icons.radar_outlined,
                   color: secondaryTextColor, size: 20),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
               const Text(
-                'Raio de busca',
+                'Raio',
                 style: TextStyle(
                   color: secondaryTextColor,
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const Spacer(),
+              const Spacer(), 
+              if (!_isLoading)
+                 Padding(
+                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                   child: Text(
+                    '(${_filteredPromotions.length} encontrados)',
+                    style: const TextStyle(
+                      color: secondaryTextColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                   ),
+                 ),
               Text(
                 '${_currentRadius.toInt()} km',
                 style: const TextStyle(
                   color: mapIconColor,
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          Slider(
-            value: _currentRadius,
-            min: 1,
-            max: 50,
-            divisions: 49,
-            activeColor: primaryButtonColor,
-            inactiveColor: fieldBorderColor,
-            label: '${_currentRadius.toInt()} km',
-            onChanged: (double value) {
-              setState(() => _currentRadius = value);
-            },
-            onChangeEnd: (double value) {
-              _applyFilters();
-            },
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 2.0,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8.0),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 16.0),
+            ),
+            child: Slider(
+              value: _currentRadius,
+              min: 1,
+              max: 50,
+              divisions: 49,
+              activeColor: primaryButtonColor,
+              inactiveColor: fieldBorderColor,
+              label: '${_currentRadius.toInt()} km',
+              onChanged: (double value) {
+                setState(() => _currentRadius = value);
+              },
+              onChangeEnd: (double value) {
+                _applyFilters(); 
+              },
+            ),
           ),
+
           const Divider(color: fieldBorderColor, height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
+
+          // Filtros de Categoria
           SizedBox(
-            height: 40,
+            height: 35,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -293,19 +363,123 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _buildHighlightItem(Map<String, dynamic> promotion) {
+    final images = promotion['images'] as List<dynamic>? ?? [];
+    final imageUrl = images.isNotEmpty ? images[0]['presignedUrl'] : null;
+    final title = promotion['title'] ?? 'Rolê em Destaque';
+    final promotionId = promotion['id'];
+
+    return InkWell(
+      onTap: () {
+        if (promotionId != null) {
+          _navigateToDetail(promotionId);
+        }
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: SizedBox(
+        width: 180,
+        child: ClipRRect( 
+           borderRadius: BorderRadius.circular(12),
+           child: Stack(
+             fit: StackFit.expand, 
+             children: [
+               _buildHighlightImage(imageUrl),
+               Positioned(
+                 bottom: 0,
+                 left: 0,
+                 right: 0,
+                 child: Container(
+                   padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+                   decoration: BoxDecoration(
+                     gradient: LinearGradient(
+                       colors: [
+                         Colors.black.withOpacity(0.0),
+                         Colors.black.withOpacity(0.8),
+                       ],
+                       begin: Alignment.topCenter,
+                       end: Alignment.bottomCenter,
+                       stops: const [0.5, 1.0], 
+                     ),
+                   ),
+                   child: Text(
+                     title,
+                     style: const TextStyle(
+                       color: Colors.white, 
+                       fontWeight: FontWeight.w600,
+                       fontSize: 14,
+                       shadows: [ 
+                         Shadow(
+                           offset: Offset(0, 1),
+                           blurRadius: 2.0,
+                           color: Colors.black54,
+                         ),
+                       ]
+                     ),
+                     maxLines: 2,
+                     overflow: TextOverflow.ellipsis,
+                     textAlign: TextAlign.start,
+                   ),
+                 ),
+               ),
+             ],
+           ),
+        ),
+      ),
+    );
+  }
+
+ Widget _buildHighlightImage(String? imageUrl) {
+    return AspectRatio( 
+      aspectRatio: 16 / 9,
+      child: Container(
+        color: fieldBackgroundColor, 
+        child: imageUrl != null
+            ? Image.network(
+                imageUrl,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: primaryButtonColor,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(
+                    child: Icon(
+                      Icons.error_outline,
+                      color: secondaryTextColor,
+                      size: 30,
+                    ),
+                  );
+                },
+              )
+            : const Center(
+                child: Icon(
+                  Icons.image_not_supported_outlined,
+                  color: secondaryTextColor,
+                  size: 30,
+                ),
+              ),
+      ),
+    );
+  }
+
   Widget _buildCategoryChip({
     required String label,
     required bool isSelected,
     required VoidCallback onSelected,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(right: 10.0),
+      padding: const EdgeInsets.only(right: 8.0),
       child: ActionChip(
         onPressed: onSelected,
-        label: Text(label),
+        label: Text(label, style: const TextStyle(fontSize: 12)),
         avatar: isSelected
             ? const Icon(Icons.check_circle_outline,
-                color: Colors.white, size: 18)
+                color: Colors.white, size: 16)
             : null,
         backgroundColor: isSelected ? accentColor : fieldBackgroundColor,
         labelStyle: TextStyle(
@@ -313,13 +487,14 @@ class _HomeTabState extends State<HomeTab> {
           fontWeight: FontWeight.bold,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(
             color: isSelected ? accentColor : fieldBorderColor,
-            width: 1.5,
+            width: 1.0,
           ),
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
@@ -334,9 +509,14 @@ class _HomeTabState extends State<HomeTab> {
           child: Text(_error!, style: const TextStyle(color: Colors.red)));
     }
     if (_filteredPromotions.isEmpty) {
-      return const Center(
-          child: Text("Nenhum rolê encontrado com os filtros atuais.",
-              style: TextStyle(color: secondaryTextColor, fontSize: 16)));
+      return Center(
+          child: Text(
+            _selectedType == null && _currentRadius >= 50
+              ? "Nenhum rolê cadastrado ainda."
+              : "Nenhum rolê encontrado com os filtros atuais.",
+            style: const TextStyle(color: secondaryTextColor, fontSize: 16)
+          )
+      );
     }
     return RefreshIndicator(
       onRefresh: _fetchData,
@@ -429,9 +609,7 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     return InkWell(
-      // A ÚNICA ALTERAÇÃO ESTÁ AQUI:
       onTap: () {
-        // A nova função de navegação é chamada aqui
         _navigateToDetail(promotion['id']);
       },
       child: Card(
